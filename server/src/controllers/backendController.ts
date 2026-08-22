@@ -188,15 +188,10 @@ export async function getTripDetails(req: Request, res: Response) {
       // Fallback
     }
 
-    // Fallback to demo trip if not found
-    const firstTrip = Array.from(memoryTrips.values())[0];
-    if (firstTrip) {
-      return res.json(firstTrip);
-    }
-
-    res.status(404).json({ error: "Trip not found" });
+    // Return 404 if trip not found
+    return res.status(404).json({ error: "Trip not found" });
   } catch (err: any) {
-    res.status(404).json({ error: err.message });
+    return res.status(404).json({ error: err.message || "Trip not found" });
   }
 }
 

@@ -28,9 +28,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('globetrotter_user');
-      return saved ? JSON.parse(saved) : DEFAULT_USERS[0];
+      return saved ? JSON.parse(saved) : null;
     } catch (_) {
-      return DEFAULT_USERS[0];
+      return null;
     }
   });
 
