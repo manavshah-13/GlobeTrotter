@@ -40,20 +40,24 @@ export async function generateItineraryHandler(req: Request, res: Response): Pro
 
     const tripId = dbResult?.trip_id || `ai-trip-${Date.now()}`;
     const startStr = start_date || new Date().toISOString().split("T")[0];
-    const totalDays = aiPlan.trip.total_days || 5;
+    const totalDays = aiPlan.trip?.total_days || (aiPlan.stops || []).reduce((acc, s) => acc + (s.duration_days || 1), 0) || 5;
     const endDate = new Date(startStr);
     endDate.setDate(endDate.getDate() + totalDays);
+
+    const tripName = aiPlan.trip?.name || aiPlan.name || "AI Generated Trip";
+    const tripDesc = aiPlan.trip?.description || aiPlan.description || "Custom AI trip itinerary";
+    const coverPhoto = aiPlan.trip?.cover_photo_url || aiPlan.cover_photo || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80";
 
     const formattedTrip = {
       id: tripId,
       user_id: userId,
-      name: aiPlan.trip.name,
-      description: aiPlan.trip.description,
+      name: tripName,
+      description: tripDesc,
       start_date: startStr,
       end_date: endDate.toISOString().split("T")[0],
-      cover_photo_url: aiPlan.trip.cover_photo_url || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80",
+      cover_photo_url: coverPhoto,
       is_public: true,
-      public_slug: `${aiPlan.trip.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now().toString(36)}`,
+      public_slug: `${tripName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now().toString(36)}`,
       stops: (aiPlan.stops || []).map((s, idx) => ({
         id: `stop-${idx + 1}-${Date.now()}`,
         trip_id: tripId,

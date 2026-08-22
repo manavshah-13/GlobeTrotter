@@ -13,27 +13,38 @@ export interface GeneratedActivity {
   cost: number;
   duration_min: number;
   description: string;
-  image_url: string;
-  day_number: number;
-  time_slot: string; // "Morning", "Afternoon", "Evening"
+  image_url?: string;
+  day_number?: number;
+  time_slot?: string; // "Morning", "Afternoon", "Evening"
 }
 
 export interface GeneratedStop {
   city_name: string;
   country: string;
-  cost_index: number; // 1 to 5
-  popularity: number; // 1 to 100
-  city_image_url: string;
-  duration_days: number;
+  cost_index?: number; // 1 to 5
+  popularity?: number; // 1 to 100
+  city_image_url?: string;
+  duration_days?: number;
+  day_start?: number;
+  day_end?: number;
+  order_index?: number;
   activities: GeneratedActivity[];
 }
 
 export interface GeneratedTripPlan {
   name: string;
   description: string;
-  cover_photo: string;
+  cover_photo?: string;
   stops: GeneratedStop[];
+  trip?: {
+    name?: string;
+    description?: string;
+    total_days?: number;
+    cover_photo_url?: string;
+  };
 }
+
+export type ItineraryResponse = GeneratedTripPlan;
 
 // JSON Schema for Gemini Itinerary Output
 export const ITINERARY_JSON_SCHEMA = {
@@ -69,15 +80,15 @@ export const ITINERARY_JSON_SCHEMA = {
                 day_number: { type: "integer", description: "Day number within this city stop (1 to duration_days)" },
                 time_slot: { type: "string", description: "Time slot: Morning, Afternoon, or Evening" }
               },
-              required: ["name", "category", "cost", "duration_min", "description", "day_number", "time_slot"]
+              required: ["name", "category", "cost", "duration_min", "description"]
             }
           }
         },
-        required: ["city_name", "country", "cost_index", "popularity", "duration_days", "activities"]
+        required: ["city_name", "country", "activities"]
       }
     }
   },
-  required: ["name", "description", "cover_photo", "stops"]
+  required: ["name", "description", "stops"]
 };
 
 // ==========================================

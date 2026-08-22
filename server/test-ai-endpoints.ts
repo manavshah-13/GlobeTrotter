@@ -69,12 +69,12 @@ async function runTestSuite() {
       const dbResult = await insertFullItinerary(plan, `test-user-${i + 1}`, sc.startDate);
 
       const latencyMs = Date.now() - startTime;
-      const totalActivities = dbResult.stops.reduce((acc, s) => acc + (s.activities?.length || 0), 0);
+      const totalActivities = (dbResult.stops || []).reduce((acc: number, s: any) => acc + (s.activities?.length || 0), 0);
 
       console.log(`  ✅ Success! Trip ID: ${dbResult.trip_id}`);
       console.log(`  ⏱️  Latency: ${latencyMs} ms (Target < 5000 ms: ${latencyMs < 5000 ? 'PASSED ⚡' : 'WARN 🐢'})`);
       console.log(`  📍 Stops: ${dbResult.stops.length} cities | 🎡 Total Activities: ${totalActivities}`);
-      console.log(`  🏙️  Cities created/matched: ${dbResult.cities_created}`);
+      console.log(`  🏙️  Cities count: ${dbResult.stops.length}`);
       console.log('---------------------------------------------------------------');
 
       results.push({

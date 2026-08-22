@@ -44,11 +44,14 @@ export async function insertFullItinerary(
   }
 
   const startDate = startDateStr ? new Date(startDateStr) : new Date();
-  const totalDays = parsed.trip.total_days || 3;
+  const totalDays = parsed.trip?.total_days || (parsed.stops || []).reduce((acc: number, s: any) => acc + (s.duration_days || 1), 0) || 3;
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + totalDays);
 
-  const cleanSlug = `${parsed.trip.name
+  const tripName = parsed.trip?.name || parsed.name || "Trip";
+  const tripDesc = parsed.trip?.description || parsed.description || "";
+
+  const cleanSlug = `${tripName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "-")
     .replace(/-+/g, "-")}-${Date.now().toString(36)}`;
@@ -58,8 +61,8 @@ export async function insertFullItinerary(
     .from("trips")
     .insert({
       user_id: userId,
-      name: parsed.trip.name,
-      description: parsed.trip.description,
+      name: tripName,
+      description: tripDesc,
       start_date: startDate.toISOString().split("T")[0],
       end_date: endDate.toISOString().split("T")[0],
       is_public: false,
@@ -149,13 +152,13 @@ export async function insertFullItinerary(
   return { trip_id: tripData.id, trip: tripData, stops: parsed.stops };
 }
 
-export async function fetchRecentTripsSummary(): Promise<string[]> {
+export async function fetchRecentTripsSummary(limitCount: number = 8): Promise<string[]> {
   if (isMock) return ["Tokyo: 3 days", "Paris: 5 days"];
   const { data } = await supabase
     .from("trips")
     .select("name, description")
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(limitCount);
 
-  return (data || []).map((t) => `${t.name}: ${t.description || ""}`);
+  return (data || []).map((t: any) => `${t.name}: ${t.description || ""}`);
 }

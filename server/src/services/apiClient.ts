@@ -1,11 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "https://mock.supabase.co";
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "mock-key";
 
-const AI_API_BASE = import.meta.env.VITE_AI_API_URL || "http://localhost:5000/api";
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+const AI_API_BASE = process.env.VITE_AI_API_URL || process.env.AI_API_URL || "http://localhost:5000/api";
 
 // 1. City Search & Filter
 export async function searchCities(query = "", region = "", maxCost?: number) {
