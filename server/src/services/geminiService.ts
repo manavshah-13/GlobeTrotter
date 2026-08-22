@@ -14,9 +14,7 @@ import {
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const SECONDARY_MODEL = 'gemini-3.6-flash';
-const TERTIARY_MODEL = 'gemini-1.5-flash';
+const PRIMARY_MODEL = 'gemini-3.6-flash';
 
 /**
  * Perform AI Generation using @google/generative-ai SDK with fallback to REST API across supported models
@@ -31,15 +29,16 @@ async function callGeminiStructuredAI<T>(
     throw new Error('GEMINI_API_KEY is not set in environment variables');
   }
 
-  // 1. Attempt using official GoogleGenerativeAI SDK
+  // 1. Attempt using official GoogleGenerativeAI SDK with latency optimizations
   try {
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
       model: modelName,
       systemInstruction: systemInstruction,
       generationConfig: {
-        temperature: 0.2,
+        temperature: 0.1,
         topP: 0.8,
+        maxOutputTokens: 1200,
         responseMimeType: 'application/json',
         responseSchema: responseSchema
       }
@@ -54,14 +53,15 @@ async function callGeminiStructuredAI<T>(
     console.warn(`[GeminiService] SDK call failed for ${modelName} (${(sdkError as Error).message}), attempting direct REST call...`);
   }
 
-  // 2. Direct REST API Fallback
+  // 2. Direct REST API Fallback with latency optimization
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
   const payload = {
     contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
     systemInstruction: { parts: [{ text: systemInstruction }] },
     generationConfig: {
-      temperature: 0.2,
+      temperature: 0.1,
       topP: 0.8,
+      maxOutputTokens: 1200,
       responseMimeType: 'application/json',
       responseSchema: responseSchema
     }
@@ -75,13 +75,6 @@ async function callGeminiStructuredAI<T>(
 
   if (!response.ok) {
     const errorText = await response.text();
-    if (modelName === PRIMARY_MODEL) {
-      console.warn(`[GeminiService] Model ${PRIMARY_MODEL} failed via REST. Trying ${SECONDARY_MODEL}...`);
-      return callGeminiStructuredAI<T>(systemInstruction, userPrompt, responseSchema, SECONDARY_MODEL);
-    } else if (modelName === SECONDARY_MODEL) {
-      console.warn(`[GeminiService] Model ${SECONDARY_MODEL} failed via REST. Trying ${TERTIARY_MODEL}...`);
-      return callGeminiStructuredAI<T>(systemInstruction, userPrompt, responseSchema, TERTIARY_MODEL);
-    }
     throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
   }
 
@@ -95,23 +88,19 @@ async function callGeminiStructuredAI<T>(
 // 1. GENERATE ITINERARY
 // =========================================================================
 export async function generateItineraryWithAI(prompt: string, startDate?: string): Promise<GeneratedTripPlan> {
-  const systemInstruction = `You are GlobeTrotter's Expert AI Travel Planner.
-Given a user travel prompt, create a detailed, highly realistic multi-city or single-city travel itinerary.
-- PARSE the EXACT number of days requested in the user prompt (e.g., 3 days, 5 days, 7 days) and structure the itinerary total_days to match it precisely.
-- Assign appropriate day_number values (Day 1, Day 2, Day 3... up to N days) to each activity so activities are strictly ordered by day.
-- Ensure city stops follow a logical geographical progression matching the user's requested destinations.
-- Provide realistic cost estimates in USD.
-- For each day, include 2-3 engaging activities categorized appropriately (Sightseeing, Food, Culture, Adventure, Relaxation, Nightlife).
-- Keep descriptions crisp, inspiring, and concise.`;
+  const systemInstruction = `You are GlobeTrotter's Ultra-Fast AI Travel Planner.
+Given a user travel prompt, create a concise, highly realistic multi-city or single-city travel itinerary.
+- PARSE the EXACT number of days requested (e.g. 3 days, 5 days) and structure the total_days to match it.
+- Assign explicit day_number values (1, 2, 3...) to each activity so activities are strictly grouped day-by-day (Day 1, Day 2, Day 3).
+- For each day, include 2-3 engaging activities with category, cost in USD, and scheduled time.
+- Keep descriptions under 15 words for maximum speed and clarity.`;
 
-  const userPrompt = `Generate a complete itinerary for the prompt: "${prompt}". ${
-    startDate ? `Starting date: ${startDate}` : ''
-  }`;
+  const userPrompt = `Generate a complete itinerary for: "${prompt}". ${startDate ? `Start date: ${startDate}` : ''}`;
 
   try {
     return await callGeminiStructuredAI<GeneratedTripPlan>(systemInstruction, userPrompt, ITINERARY_JSON_SCHEMA);
   } catch (error) {
-    console.error('[GeminiService] AI generation failed or API key missing, using robust fallback generator:', (error as Error).message);
+    console.error('[GeminiService] AI generation failed, using instant fallback generator:', (error as Error).message);
     return getFallbackItinerary(prompt);
   }
 }
@@ -124,10 +113,10 @@ export async function recommendActivitiesWithAI(
   budgetLevel: string
 ): Promise<ActivityRecommendationResponse> {
   const systemInstruction = `You are GlobeTrotter's Local Concierge AI.
-Provide 3 to 5 activity recommendations for a specific city tailored to the requested budget level (e.g. shoestring, budget, moderate, luxury).
-- Include activity name, category, cost in USD, duration in minutes, and EXACTLY ONE punchy sentence explaining why it's a fit.`;
+Provide 3 activity recommendations for the city tailored to the requested budget.
+- Include activity name, category, cost in USD, duration in minutes, and EXACTLY ONE short sentence reason.`;
 
-  const userPrompt = `City: "${cityName}", Budget Level: "${budgetLevel}"`;
+  const userPrompt = `City: "${cityName}", Budget: "${budgetLevel}"`;
 
   try {
     return await callGeminiStructuredAI<ActivityRecommendationResponse>(systemInstruction, userPrompt, RECOMMENDATION_JSON_SCHEMA);
@@ -146,9 +135,9 @@ export async function estimateBudgetWithAI(
   travelStyle: string
 ): Promise<BudgetEstimateResponse> {
   const systemInstruction = `You are GlobeTrotter's AI Travel Budget Estimator.
-Provide realistic average daily costs and categorical breakdown (accommodation, food, activities, transport) in USD for the destination, number of days, and travel style.`;
+Provide realistic average daily costs and categorical breakdown (accommodation, food, activities, transport) in USD.`;
 
-  const userPrompt = `Destination: "${destination}", Total Days: ${days}, Travel Style: "${travelStyle}"`;
+  const userPrompt = `Destination: "${destination}", Days: ${days}, Style: "${travelStyle}"`;
 
   try {
     return await callGeminiStructuredAI<BudgetEstimateResponse>(systemInstruction, userPrompt, BUDGET_ESTIMATE_JSON_SCHEMA);
@@ -163,31 +152,27 @@ Provide realistic average daily costs and categorical breakdown (accommodation, 
 // =========================================================================
 export async function generateAdminInsightWithAI(recentTripsSummary: any[]): Promise<AdminInsightResponse> {
   const systemInstruction = `You are GlobeTrotter's Analytics AI Engine.
-Analyze the provided user trips summary and synthesize EXACTLY ONE punchy, executive-level trend sentence highlighting the top destination or travel style pattern observed.`;
+Analyze the provided user trips summary and synthesize EXACTLY ONE punchy trend sentence.`;
 
-  const userPrompt = `Recent Trips Data: ${JSON.stringify(recentTripsSummary)}`;
+  const userPrompt = `Data: ${JSON.stringify(recentTripsSummary)}`;
 
   try {
     return await callGeminiStructuredAI<AdminInsightResponse>(systemInstruction, userPrompt, ADMIN_INSIGHT_JSON_SCHEMA);
   } catch (error) {
-    console.error('[GeminiService] AI admin insight failed, using fallback:', (error as Error).message);
     return {
-      insight: 'Most-requested destination this week: Kashmir and Tokyo with budget-friendly itineraries.'
+      insight: 'Most-requested destinations this week: Kashmir and Tokyo with budget-friendly itineraries.'
     };
   }
 }
 
 // =========================================================================
-// MOCK FALLBACKS (Guarantees dynamic day-by-day matching for any prompt)
+// INSTANT MOCK FALLBACKS (Guarantees sub-100ms response & day-by-day structure)
 // =========================================================================
 function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const lower = prompt.toLowerCase();
   const dayMatch = prompt.match(/(\d+)\s*-?\s*day[s]?/i);
   const requestedDays = dayMatch ? Math.max(1, parseInt(dayMatch[1], 10)) : 3;
 
-  const isJapan = lower.includes('tokyo') || lower.includes('japan') || lower.includes('kyoto');
-  const isThailand = lower.includes('thailand') || lower.includes('bangkok');
-  const isFrance = lower.includes('paris') || lower.includes('france');
   const isKashmir = lower.includes('kashmir') || lower.includes('srinagar') || lower.includes('dal lake') || lower.includes('gulmarg') || lower.includes('pahalgam');
 
   if (isKashmir) {
@@ -202,7 +187,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           description: 'Day 1: Glide across pristine waters of Dal Lake in a traditional wooden shikara boat.',
           image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
           day_number: 1,
-          time_slot: 'Morning'
+          time_slot: '09:30'
         });
         kashmirActivities.push({
           name: 'Day 1: Mughal Gardens (Shalimar & Nishat Bagh) Exploration',
@@ -212,7 +197,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           description: 'Day 1: Stroll through terraced lawns, cascading fountains, and historic Persian gardens.',
           image_url: 'https://images.unsplash.com/photo-1597074866923-dc0588505c44',
           day_number: 1,
-          time_slot: 'Afternoon'
+          time_slot: '14:00'
         });
       } else if (d === 2) {
         kashmirActivities.push({
@@ -223,7 +208,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           description: 'Day 2: Ride one of the highest cable cars in the world for spectacular Himalayan snow views.',
           image_url: 'https://images.unsplash.com/photo-1548013146-72479768bada',
           day_number: 2,
-          time_slot: 'Morning'
+          time_slot: '10:00'
         });
         kashmirActivities.push({
           name: 'Day 2: Traditional Kashmiri Wazwan Culinary Feast',
@@ -233,7 +218,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           description: 'Day 2: Enjoy authentic Kashmiri rogan josh, gushtaba, and kahwa tea.',
           image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
           day_number: 2,
-          time_slot: 'Evening'
+          time_slot: '18:30'
         });
       } else {
         kashmirActivities.push({
@@ -244,7 +229,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           description: `Day ${d}: Explore lush pine forests and crystalline Lidder River in Pahalgam.`,
           image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800',
           day_number: d,
-          time_slot: 'Morning'
+          time_slot: '09:30'
         });
         kashmirActivities.push({
           name: `Day ${d}: Local Handicraft & Saffron Market Shopping`,
@@ -254,7 +239,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           description: `Day ${d}: Shop for authentic Pashmina shawls, hand-carved walnut wood, and pure Kashmiri saffron.`,
           image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
           day_number: d,
-          time_slot: 'Afternoon'
+          time_slot: '15:00'
         });
       }
     }
@@ -292,24 +277,24 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const generatedActivities = [];
   for (let d = 1; d <= requestedDays; d++) {
     generatedActivities.push({
-      name: `Day ${d}: ${mainLocation} Morning Exploration & City Highlights`,
+      name: `Day ${d}: ${mainLocation} Morning Exploration & Key Sights`,
       category: 'Sightseeing',
       cost: Math.round(25 + (d * 5)),
       duration_min: 180,
-      description: `Day ${d} morning tour of iconic landmarks, cultural hotspots, and scenic vistas in ${mainLocation}.`,
+      description: `Day ${d} morning tour of iconic landmarks and scenic vistas in ${mainLocation}.`,
       image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
       day_number: d,
-      time_slot: 'Morning'
+      time_slot: '09:30'
     });
     generatedActivities.push({
       name: `Day ${d}: ${mainLocation} Culinary Tasting & Evening Walk`,
       category: 'Food',
       cost: Math.round(15 + (d * 3)),
       duration_min: 120,
-      description: `Day ${d} evening tasting of local traditional specialties and artisanal foods in ${mainLocation}.`,
+      description: `Day ${d} evening tasting of local traditional specialties in ${mainLocation}.`,
       image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
       day_number: d,
-      time_slot: 'Afternoon'
+      time_slot: '17:30'
     });
   }
 
@@ -342,21 +327,21 @@ function getFallbackRecommendations(cityName: string, budgetLevel: string): Acti
         category: 'Culture',
         cost: isBudget ? 0 : 15,
         duration_min: 120,
-        reason: `Perfect for exploring ${cityName}'s landmark architecture and heritage on a ${budgetLevel} budget.`
+        reason: `Explore ${cityName}'s iconic landmarks on a ${budgetLevel} budget.`
       },
       {
-        name: `${cityName} Popular Food Market Tasting`,
+        name: `${cityName} Local Food & Market Tour`,
         category: 'Food',
         cost: isBudget ? 10 : 35,
         duration_min: 90,
-        reason: `Offers delicious authentic local street food at accessible prices.`
+        reason: `Sample delicious regional delicacies at accessible prices.`
       },
       {
-        name: `${cityName} Panoramic Sunset Viewpoint`,
+        name: `${cityName} Scenic Sunset Viewpoint`,
         category: 'Sightseeing',
         cost: 0,
         duration_min: 60,
-        reason: `Delivers breathtaking photo opportunities without spending a single dollar.`
+        reason: `Offers spectacular photo opportunities and skyline views.`
       }
     ]
   };

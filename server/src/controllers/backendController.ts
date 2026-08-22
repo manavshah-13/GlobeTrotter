@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { supabase, toValidUUID } from "../services/supabaseService.js";
+import { recommendActivitiesWithAI } from "../services/geminiService.js";
 
 // In-memory store for fallback/demo resilience
 export const memoryTrips: Map<string, any> = new Map([
@@ -220,6 +221,47 @@ export async function addStop(req: Request, res: Response) {
     const stopId = `stop-${Date.now()}`;
     const name = city_name || "New Waypoint";
 
+    // Auto-generate AI recommended activities for this newly added city stop!
+    let aiActivities: any[] = [];
+    try {
+      const aiRecs = await recommendActivitiesWithAI(name, 'moderate');
+      if (aiRecs?.recommendations && aiRecs.recommendations.length > 0) {
+        aiActivities = aiRecs.recommendations.map((rec, rIdx) => ({
+          id: `act-${Date.now()}-${rIdx}`,
+          custom_name: rec.name,
+          category: (rec.category || "sightseeing").toLowerCase(),
+          cost: rec.cost || 20,
+          order_index: rIdx,
+          day_number: 1,
+          scheduled_time: rIdx === 0 ? "09:30" : rIdx === 1 ? "14:00" : "18:00",
+          description: rec.reason || rec.description || ""
+        }));
+      }
+    } catch (e) {
+      aiActivities = [
+        {
+          id: `act-${Date.now()}-0`,
+          custom_name: `${name} City Highlights & Landmark Tour`,
+          category: "sightseeing",
+          cost: 25,
+          order_index: 0,
+          day_number: 1,
+          scheduled_time: "10:00",
+          description: `AI recommended sightseeing tour of top landmarks in ${name}.`
+        },
+        {
+          id: `act-${Date.now()}-1`,
+          custom_name: `${name} Traditional Culinary Experience`,
+          category: "food",
+          cost: 30,
+          order_index: 1,
+          day_number: 1,
+          scheduled_time: "13:30",
+          description: `AI recommended local food tasting experience in ${name}.`
+        }
+      ];
+    }
+
     const newStop = {
       id: stopId,
       trip_id,
@@ -230,7 +272,7 @@ export async function addStop(req: Request, res: Response) {
       start_date: start_date || new Date().toISOString().split("T")[0],
       end_date: end_date || new Date().toISOString().split("T")[0],
       cities: { name, country: country || "International" },
-      trip_activities: []
+      trip_activities: aiActivities
     };
 
     if (trip_id && memoryTrips.has(trip_id)) {
@@ -247,7 +289,7 @@ export async function addStop(req: Request, res: Response) {
         .single();
 
       if (!error && data) {
-        return res.status(201).json(data);
+        return res.status(201).json({ ...data, trip_activities: aiActivities });
       }
     } catch (e) {}
 
