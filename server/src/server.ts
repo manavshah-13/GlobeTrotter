@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 
@@ -34,35 +34,41 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+const apiRouter = Router();
+
 // Health Check
-app.get("/api/health", (req, res) => {
+apiRouter.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
 // --- AI Automation Endpoints ---
-app.post("/api/generate-itinerary", generateItineraryHandler);
-app.all("/api/recommend-activities", recommendActivitiesHandler);
-app.all("/api/estimate-budget", estimateBudgetHandler);
-app.all("/api/admin-insight", adminInsightHandler);
+apiRouter.post("/generate-itinerary", generateItineraryHandler);
+apiRouter.all("/recommend-activities", recommendActivitiesHandler);
+apiRouter.all("/estimate-budget", estimateBudgetHandler);
+apiRouter.all("/admin-insight", adminInsightHandler);
 
 // --- Core Backend Endpoints ---
-app.get("/api/trips", getUserTrips);
-app.post("/api/trips", createTripManual);
-app.get("/api/trips/:id", getTripDetails);
-app.delete("/api/trips/:id", deleteTrip);
-app.get("/api/trips/:id/budget", getTripBudget);
-app.post("/api/trips/copy", copyTripHandler);
+apiRouter.get("/trips", getUserTrips);
+apiRouter.post("/trips", createTripManual);
+apiRouter.get("/trips/:id", getTripDetails);
+apiRouter.delete("/trips/:id", deleteTrip);
+apiRouter.get("/trips/:id/budget", getTripBudget);
+apiRouter.post("/trips/copy", copyTripHandler);
 
-app.post("/api/stops", addStop);
-app.post("/api/stops/reorder", reorderStops);
-app.delete("/api/stops/:id", removeStop);
+apiRouter.post("/stops", addStop);
+apiRouter.post("/stops/reorder", reorderStops);
+apiRouter.delete("/stops/:id", removeStop);
 
-app.post("/api/trip-activities", assignActivityToStop);
-app.delete("/api/trip-activities/:id", removeActivityFromStop);
+apiRouter.post("/trip-activities", assignActivityToStop);
+apiRouter.delete("/trip-activities/:id", removeActivityFromStop);
 
-app.get("/api/cities", getCityCatalog);
-app.get("/api/activities", getActivityCatalog);
-app.get("/api/admin/metrics", getAdminMetrics);
+apiRouter.get("/cities", getCityCatalog);
+apiRouter.get("/activities", getActivityCatalog);
+apiRouter.get("/admin/metrics", getAdminMetrics);
+
+// Mount router on BOTH `/api` and `/` so all rewrite configurations work seamlessly
+app.use("/api", apiRouter);
+app.use("/", apiRouter);
 
 app.listen(PORT, () => {
   console.log(`🚀 GlobeTrotter Unified Backend listening on port ${PORT}`);
