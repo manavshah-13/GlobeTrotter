@@ -16,6 +16,7 @@ import ProfileSettingsPage from './pages/ProfileSettingsPage';
 import SharedItineraryPage from './pages/SharedItineraryPage';
 import BudgetBreakdownPage from './pages/BudgetBreakdownPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
+import CommunityPage from './pages/CommunityPage';
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
       <Route path="/shared" element={<SharedItineraryPage />} />
       <Route path="/budget" element={<BudgetBreakdownPage />} />
       <Route path="/admin" element={<AdminAnalyticsPage />} />
+      <Route path="/community" element={<CommunityPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

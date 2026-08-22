@@ -9,6 +9,7 @@ const ALL_SCREENS = [
   { name: "Plan a New Trip", path: "/plan", icon: "add_location_alt" },
   { name: "Itinerary Builder", path: "/builder", icon: "route" },
   { name: "My Trips", path: "/trips", icon: "luggage" },
+  { name: "Community Hub", path: "/community", icon: "groups" },
   { name: "Activity Search", path: "/activity-search", icon: "local_activity" },
   { name: "City Search", path: "/city-search", icon: "location_city" },
   { name: "Itinerary View", path: "/itinerary", icon: "map" },
@@ -61,7 +62,6 @@ export function SidebarNav() {
         })}
       </div>
 
-      {/* Sign Out Button at Bottom of Sidebar */}
       <div className="pt-4 border-t border-slate">
         <button
           onClick={handleSignOut}
@@ -109,10 +109,10 @@ export function TopAppBar({ title }) {
         ) : (
           <>
             <Link
-              to="/dashboard"
+              to="/community"
               className="text-sm font-medium text-ink-navy hover:text-horizon-amber hidden sm:inline-block"
             >
-              Dashboard
+              Community
             </Link>
             <button
               onClick={handleSignOut}

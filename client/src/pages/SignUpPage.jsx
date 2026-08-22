@@ -12,16 +12,16 @@ export default function SignUpPage() {
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body-md text-ink-navy">
-      <TopAppBar title="Sign Up" />
+      <TopAppBar title="Registration (Screen 2)" />
 
-      <div className="flex-grow flex items-center justify-center p-margin-page relative">
-        <div className="w-full max-w-md bg-paper border border-slate rounded-lg p-8 relative shadow-sm z-10">
+      <div className="flex-grow flex items-center justify-center p-margin-page relative py-10">
+        <div className="w-full max-w-xl bg-paper border border-slate rounded-lg p-8 relative shadow-sm z-10">
           <div className="absolute -top-3 -left-3 w-6 h-6 border-b border-r border-slate bg-paper rotate-45"></div>
 
           {/* Logo Header */}
           <div className="text-center mb-6">
             <h1 className="font-headline-lg text-headline-lg font-bold text-primary tracking-tight">GlobeTrotter</h1>
-            <p className="font-body-md text-slate mt-1">Create your travel workspace account.</p>
+            <p className="font-body-md text-slate mt-1">Register your new traveler account.</p>
           </div>
 
           {/* Login / Sign Up Tabs */}
@@ -33,67 +33,113 @@ export default function SignUpPage() {
               Login
             </Link>
             <button className="flex-1 pb-3 font-headline-sm text-headline-sm text-horizon-amber border-b-2 border-horizon-amber font-bold">
-              Sign Up
+              Sign Up (Registration)
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block font-body-md text-sm text-ink-navy font-semibold mb-1" htmlFor="fullname">
-                Full Name
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate pointer-events-none">person</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="firstname">
+                  First Name
+                </label>
                 <input
-                  id="fullname"
+                  id="firstname"
                   type="text"
                   required
-                  defaultValue="Jane Traveler"
-                  className="w-full bg-paper border border-slate rounded pl-10 pr-3 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
-                  placeholder="Jane Doe"
+                  defaultValue="Jane"
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  placeholder="Jane"
+                />
+              </div>
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="lastname">
+                  Last Name
+                </label>
+                <input
+                  id="lastname"
+                  type="text"
+                  required
+                  defaultValue="Doe"
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  placeholder="Doe"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block font-body-md text-sm text-ink-navy font-semibold mb-1" htmlFor="email">
-                Email Address
-              </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate pointer-events-none">mail</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="email">
+                  Email Address
+                </label>
                 <input
                   id="email"
                   type="email"
                   required
                   defaultValue="jane@globetrotter.io"
-                  className="w-full bg-paper border border-slate rounded pl-10 pr-3 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                   placeholder="jane@example.com"
+                />
+              </div>
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="phone">
+                  Phone Number
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  defaultValue="+1 (555) 234-5678"
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  placeholder="+1 (555) 000-0000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="city">
+                  City
+                </label>
+                <input
+                  id="city"
+                  type="text"
+                  defaultValue="San Francisco"
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  placeholder="San Francisco"
+                />
+              </div>
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="country">
+                  Country
+                </label>
+                <input
+                  id="country"
+                  type="text"
+                  defaultValue="United States"
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  placeholder="United States"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block font-body-md text-sm text-ink-navy font-semibold mb-1" htmlFor="password">
-                Password
+              <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="bio">
+                Additional Information...
               </label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate pointer-events-none">lock</span>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  defaultValue="password123"
-                  className="w-full bg-paper border border-slate rounded pl-10 pr-3 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
-                  placeholder="••••••••"
-                />
-              </div>
+              <textarea
+                id="bio"
+                rows={3}
+                defaultValue="Frequent traveler interested in outdoor hiking, culinary tours, and culture exploration."
+                className="w-full bg-paper border border-slate rounded p-3 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                placeholder="Tell us about your travel preferences..."
+              />
             </div>
 
             <button
               type="submit"
               className="w-full bg-horizon-amber text-ink-navy font-body-md font-bold py-3 rounded hover:opacity-90 transition-opacity mt-2 flex items-center justify-center gap-2"
             >
-              <span>Create Account</span>
+              <span>Register Now</span>
               <span className="material-symbols-outlined text-lg">check_circle</span>
             </button>
           </form>
