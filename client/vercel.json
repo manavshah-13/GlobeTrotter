@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://globetrotter-m4vz.onrender.com"
+      "source": "/api/:match*",
+      "destination": "https://globetrotter-m4vz.onrender.com/api/:match*"
     },
     {
       "source": "/(.*)",
