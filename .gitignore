@@ -79,3 +79,4 @@ venv.bak/
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 .ruff_cache/
+.env
