@@ -8,6 +8,14 @@ const _supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const isMock = !process.env.SUPABASE_URL;
 
+export function toValidUUID(id: string): string {
+  if (!id) return "00000000-0000-4000-a000-000000000000";
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(id)) return id;
+  const hex = Buffer.from(id).toString("hex").padEnd(32, "0").slice(0, 32);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(12, 15)}-a${hex.slice(16, 19)}-${hex.slice(19, 31)}`.slice(0, 36);
+}
+
 export const supabase = isMock
   ? (new Proxy(_supabase, {
       get(target, prop) {
@@ -51,6 +59,7 @@ export async function insertFullItinerary(
   const tripName = parsed.trip?.name || parsed.name || "Trip Expedition";
   const tripDesc = parsed.trip?.description || parsed.description || "";
   const coverPhotoUrl = parsed.trip?.cover_photo_url || parsed.cover_photo || "https://images.unsplash.com/photo-1488646953014-85cb44e25828";
+  const validUserId = toValidUUID(userId);
 
   const cleanSlug = `${tripName
     .toLowerCase()
@@ -61,7 +70,7 @@ export async function insertFullItinerary(
   const { data: tripData, error: tripErr } = await supabase
     .from("trips")
     .insert({
-      user_id: userId,
+      user_id: validUserId,
       name: tripName,
       description: tripDesc,
       start_date: startDate.toISOString().split("T")[0],

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { supabase } from "../services/supabaseService.js";
+import { supabase, toValidUUID } from "../services/supabaseService.js";
 
 // In-memory store for fallback/demo resilience
 export const memoryTrips: Map<string, any> = new Map([
@@ -127,7 +127,7 @@ export async function createTripManual(req: Request, res: Response) {
       const { data, error } = await supabase
         .from("trips")
         .insert({
-          user_id: newTrip.user_id,
+          user_id: toValidUUID(newTrip.user_id),
           name: newTrip.name,
           description: newTrip.description,
           start_date: newTrip.start_date,
