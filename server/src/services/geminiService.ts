@@ -14,11 +14,12 @@ import {
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const PRIMARY_MODEL = 'gemini-2.0-flash';
-const FALLBACK_MODEL = 'gemini-1.5-flash';
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const SECONDARY_MODEL = 'gemini-3.6-flash';
+const TERTIARY_MODEL = 'gemini-1.5-flash';
 
 /**
- * Perform AI Generation using @google/generative-ai SDK with fallback to REST API
+ * Perform AI Generation using @google/generative-ai SDK with fallback to REST API across supported models
  */
 async function callGeminiStructuredAI<T>(
   systemInstruction: string,
@@ -50,7 +51,7 @@ async function callGeminiStructuredAI<T>(
       return JSON.parse(text) as T;
     }
   } catch (sdkError) {
-    console.warn(`[GeminiService] SDK call failed (${(sdkError as Error).message}), attempting direct REST call...`);
+    console.warn(`[GeminiService] SDK call failed for ${modelName} (${(sdkError as Error).message}), attempting direct REST call...`);
   }
 
   // 2. Direct REST API Fallback
@@ -75,8 +76,11 @@ async function callGeminiStructuredAI<T>(
   if (!response.ok) {
     const errorText = await response.text();
     if (modelName === PRIMARY_MODEL) {
-      console.warn(`[GeminiService] Model ${PRIMARY_MODEL} failed via REST. Trying ${FALLBACK_MODEL}...`);
-      return callGeminiStructuredAI<T>(systemInstruction, userPrompt, responseSchema, FALLBACK_MODEL);
+      console.warn(`[GeminiService] Model ${PRIMARY_MODEL} failed via REST. Trying ${SECONDARY_MODEL}...`);
+      return callGeminiStructuredAI<T>(systemInstruction, userPrompt, responseSchema, SECONDARY_MODEL);
+    } else if (modelName === SECONDARY_MODEL) {
+      console.warn(`[GeminiService] Model ${SECONDARY_MODEL} failed via REST. Trying ${TERTIARY_MODEL}...`);
+      return callGeminiStructuredAI<T>(systemInstruction, userPrompt, responseSchema, TERTIARY_MODEL);
     }
     throw new Error(`Gemini API Error (${response.status}): ${errorText}`);
   }

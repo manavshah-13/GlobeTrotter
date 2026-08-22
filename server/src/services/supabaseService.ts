@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ItineraryResponse } from "../types/ai-schemas.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || "https://mock.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "mock-key";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "mock-key";
 
 const _supabase = createClient(supabaseUrl, supabaseServiceKey);
 
