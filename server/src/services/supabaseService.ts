@@ -48,8 +48,9 @@ export async function insertFullItinerary(
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + totalDays);
 
-  const tripName = parsed.trip?.name || parsed.name || "Trip";
+  const tripName = parsed.trip?.name || parsed.name || "Trip Expedition";
   const tripDesc = parsed.trip?.description || parsed.description || "";
+  const coverPhotoUrl = parsed.trip?.cover_photo_url || parsed.cover_photo || "https://images.unsplash.com/photo-1488646953014-85cb44e25828";
 
   const cleanSlug = `${tripName
     .toLowerCase()
@@ -65,10 +66,9 @@ export async function insertFullItinerary(
       description: tripDesc,
       start_date: startDate.toISOString().split("T")[0],
       end_date: endDate.toISOString().split("T")[0],
-      is_public: false,
+      is_public: true,
       public_slug: cleanSlug,
-      cover_photo_url:
-        "https://images.unsplash.com/photo-1488646953014-85cb44e25828",
+      cover_photo_url: coverPhotoUrl,
     })
     .select()
     .single();
@@ -76,7 +76,8 @@ export async function insertFullItinerary(
   if (tripErr) throw new Error(`Failed to insert trip: ${tripErr.message}`);
 
   // 2. Iterate Stops and Insert
-  for (const stop of parsed.stops) {
+  for (let sIdx = 0; sIdx < (parsed.stops || []).length; sIdx++) {
+    const stop = parsed.stops[sIdx];
     // Find or Create City
     let { data: city } = await supabase
       .from("cities")
@@ -93,7 +94,7 @@ export async function insertFullItinerary(
           region: "International",
           cost_index: 1.0,
           image_url:
-            "https://images.unsplash.com/photo-1488646953014-85cb44e25828",
+            stop.city_image_url || "https://images.unsplash.com/photo-1488646953014-85cb44e25828",
         })
         .select("id")
         .single();
@@ -103,14 +104,14 @@ export async function insertFullItinerary(
     const stopStart = new Date(startDate);
     stopStart.setDate(startDate.getDate() + ((stop.day_start || 1) - 1));
     const stopEnd = new Date(startDate);
-    stopEnd.setDate(startDate.getDate() + ((stop.day_end || stop.day_start || 1) - 1));
+    stopEnd.setDate(startDate.getDate() + ((stop.day_end || stop.day_start || (stop.duration_days || 1)) - 1));
 
     const { data: stopData, error: stopErr } = await supabase
       .from("stops")
       .insert({
         trip_id: tripData.id,
         city_id: city?.id,
-        order_index: stop.order_index ?? 0,
+        order_index: stop.order_index ?? sIdx,
         start_date: stopStart.toISOString().split("T")[0],
         end_date: stopEnd.toISOString().split("T")[0],
       })
