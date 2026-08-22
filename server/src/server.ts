@@ -10,6 +10,7 @@ import {
 } from "./controllers/aiController.js";
 
 import {
+  getUserTrips,
   createTripManual,
   getTripDetails,
   deleteTrip,
@@ -45,6 +46,7 @@ app.all("/api/estimate-budget", estimateBudgetHandler);
 app.all("/api/admin-insight", adminInsightHandler);
 
 // --- Core Backend Endpoints ---
+app.get("/api/trips", getUserTrips);
 app.post("/api/trips", createTripManual);
 app.get("/api/trips/:id", getTripDetails);
 app.delete("/api/trips/:id", deleteTrip);

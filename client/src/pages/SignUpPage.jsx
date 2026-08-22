@@ -1,18 +1,56 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TopAppBar } from '../components/Navigation';
+import { useAuth } from '../context/AuthContext';
 
 export default function SignUpPage() {
   const navigate = useNavigate();
+  const { signup } = useAuth();
 
-  const handleSubmit = (e) => {
+  const [formData, setFormData] = useState({
+    firstName: 'Jane',
+    lastName: 'Traveler',
+    email: 'jane.new@globetrotter.io',
+    password: 'password123',
+    phone: '+1 (555) 234-5678',
+    city: 'San Francisco',
+    country: 'United States',
+    bio: 'Frequent traveler interested in outdoor hiking, culinary tours, and culture exploration.'
+  });
+
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      await signup({
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        city: formData.city,
+        country: formData.country,
+        bio: formData.bio
+      });
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setError(err.message || 'Failed to create account. Please check your information.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-paper flex flex-col font-body-md text-ink-navy">
-      <TopAppBar title="Registration (Screen 2)" />
+      <TopAppBar title="Registration" />
 
       <div className="flex-grow flex items-center justify-center p-margin-page relative py-10">
         <div className="w-full max-w-xl bg-paper border border-slate rounded-lg p-8 relative shadow-sm z-10">
@@ -23,6 +61,14 @@ export default function SignUpPage() {
             <h1 className="font-headline-lg text-headline-lg font-bold text-primary tracking-tight">GlobeTrotter</h1>
             <p className="font-body-md text-slate mt-1">Register your new traveler account.</p>
           </div>
+
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-5 p-3.5 bg-alert-coral/10 border border-alert-coral rounded text-alert-coral text-xs font-data-mono flex items-center gap-2">
+              <span className="material-symbols-outlined text-base flex-shrink-0">error</span>
+              <span>{error}</span>
+            </div>
+          )}
 
           {/* Login / Sign Up Tabs */}
           <div className="flex border-b border-slate mb-6">
@@ -40,29 +86,33 @@ export default function SignUpPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="firstname">
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="firstName">
                   First Name
                 </label>
                 <input
-                  id="firstname"
+                  id="firstName"
+                  name="firstName"
                   type="text"
                   required
-                  defaultValue="Jane"
+                  value={formData.firstName}
+                  onChange={handleChange}
                   className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                   placeholder="Jane"
                 />
               </div>
               <div>
-                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="lastname">
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="lastName">
                   Last Name
                 </label>
                 <input
-                  id="lastname"
+                  id="lastName"
+                  name="lastName"
                   type="text"
                   required
-                  defaultValue="Doe"
+                  value={formData.lastName}
+                  onChange={handleChange}
                   className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
-                  placeholder="Doe"
+                  placeholder="Traveler"
                 />
               </div>
             </div>
@@ -74,36 +124,57 @@ export default function SignUpPage() {
                 </label>
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   required
-                  defaultValue="jane@globetrotter.io"
+                  value={formData.email}
+                  onChange={handleChange}
                   className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                   placeholder="jane@example.com"
                 />
               </div>
+              <div>
+                <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="password">
+                  Password (min. 6 characters)
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="phone">
                   Phone Number
                 </label>
                 <input
                   id="phone"
+                  name="phone"
                   type="tel"
-                  defaultValue="+1 (555) 234-5678"
+                  value={formData.phone}
+                  onChange={handleChange}
                   className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                   placeholder="+1 (555) 000-0000"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="city">
                   City
                 </label>
                 <input
                   id="city"
+                  name="city"
                   type="text"
-                  defaultValue="San Francisco"
+                  value={formData.city}
+                  onChange={handleChange}
                   className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                   placeholder="San Francisco"
                 />
@@ -114,8 +185,10 @@ export default function SignUpPage() {
                 </label>
                 <input
                   id="country"
+                  name="country"
                   type="text"
-                  defaultValue="United States"
+                  value={formData.country}
+                  onChange={handleChange}
                   className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                   placeholder="United States"
                 />
@@ -124,12 +197,14 @@ export default function SignUpPage() {
 
             <div>
               <label className="block font-body-md text-xs font-semibold text-ink-navy mb-1" htmlFor="bio">
-                Additional Information...
+                Travel Style & Preferences
               </label>
               <textarea
                 id="bio"
-                rows={3}
-                defaultValue="Frequent traveler interested in outdoor hiking, culinary tours, and culture exploration."
+                name="bio"
+                rows={2}
+                value={formData.bio}
+                onChange={handleChange}
                 className="w-full bg-paper border border-slate rounded p-3 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                 placeholder="Tell us about your travel preferences..."
               />
@@ -137,10 +212,20 @@ export default function SignUpPage() {
 
             <button
               type="submit"
-              className="w-full bg-horizon-amber text-ink-navy font-body-md font-bold py-3 rounded hover:opacity-90 transition-opacity mt-2 flex items-center justify-center gap-2"
+              disabled={loading}
+              className="w-full bg-horizon-amber text-ink-navy font-body-md font-bold py-3 rounded hover:opacity-90 transition-opacity mt-2 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <span>Register Now</span>
-              <span className="material-symbols-outlined text-lg">check_circle</span>
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-ink-navy border-t-transparent rounded-full animate-spin"></div>
+                  <span>Registering Account...</span>
+                </>
+              ) : (
+                <>
+                  <span>Register Now & Access Dashboard</span>
+                  <span className="material-symbols-outlined text-lg">check_circle</span>
+                </>
+              )}
             </button>
           </form>
 

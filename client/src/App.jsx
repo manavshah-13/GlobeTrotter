@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -20,25 +22,108 @@ import CommunityPage from './pages/CommunityPage';
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/landing" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignUpPage />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/plan" element={<PlanNewTripPage />} />
-      <Route path="/builder" element={<ItineraryBuilderPage />} />
-      <Route path="/trips" element={<MyTripsPage />} />
-      <Route path="/activity-search" element={<ActivitySearchPage />} />
-      <Route path="/city-search" element={<CitySearchPage />} />
-      <Route path="/itinerary" element={<ItineraryViewPage />} />
-      <Route path="/calendar" element={<TripCalendarPage />} />
-      <Route path="/settings" element={<ProfileSettingsPage />} />
-      <Route path="/shared" element={<SharedItineraryPage />} />
-      <Route path="/budget" element={<BudgetBreakdownPage />} />
-      <Route path="/admin" element={<AdminAnalyticsPage />} />
-      <Route path="/community" element={<CommunityPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/landing" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignUpPage />} />
+        <Route path="/shared" element={<SharedItineraryPage />} />
+        <Route path="/community" element={<CommunityPage />} />
+
+        {/* Protected Authenticated Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/plan"
+          element={
+            <ProtectedRoute>
+              <PlanNewTripPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/builder"
+          element={
+            <ProtectedRoute>
+              <ItineraryBuilderPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trips"
+          element={
+            <ProtectedRoute>
+              <MyTripsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/itinerary"
+          element={
+            <ProtectedRoute>
+              <ItineraryViewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <TripCalendarPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/budget"
+          element={
+            <ProtectedRoute>
+              <BudgetBreakdownPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/activity-search"
+          element={
+            <ProtectedRoute>
+              <ActivitySearchPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/city-search"
+          element={
+            <ProtectedRoute>
+              <CitySearchPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <ProfileSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AuthProvider>
   );
 }

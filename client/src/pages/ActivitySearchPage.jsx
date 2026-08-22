@@ -1,17 +1,75 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { getTrips, assignActivity, recommendActivities } from '../services/api';
 
-const ACTIVITIES = [
-  { id: 1, title: 'Tsukiji Outer Market Food Tour', city: 'Tokyo', category: 'Culinary', rating: 4.9, price: '$75', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80' },
-  { id: 2, title: 'Fushimi Inari Early Morning Shrine Hike', city: 'Kyoto', category: 'Culture & Nature', rating: 4.9, price: '$35', img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80' },
-  { id: 3, title: 'Kanazawa Gold Leaf Crafting Workshop', city: 'Kanazawa', category: 'Art & Craft', rating: 4.8, price: '$45', img: 'https://images.unsplash.com/photo-1528164344705-47542687990d?auto=format&fit=crop&w=500&q=80' },
-  { id: 4, title: 'Dotonbori Street Food & Izakaya Crawl', city: 'Osaka', category: 'Nightlife', rating: 4.7, price: '$60', img: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=500&q=80' }
+const DEFAULT_ACTIVITIES = [
+  { id: 1, title: 'Tsukiji Outer Market Food Tour', city: 'Tokyo', category: 'Culinary', rating: 4.9, price: 75, img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80' },
+  { id: 2, title: 'Fushimi Inari Early Morning Shrine Hike', city: 'Kyoto', category: 'Culture & Nature', rating: 4.9, price: 35, img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80' },
+  { id: 3, title: 'Kanazawa Gold Leaf Crafting Workshop', city: 'Kanazawa', category: 'Art & Craft', rating: 4.8, price: 45, img: 'https://images.unsplash.com/photo-1528164344705-47542687990d?auto=format&fit=crop&w=500&q=80' },
+  { id: 4, title: 'Dotonbori Street Food & Izakaya Crawl', city: 'Osaka', category: 'Nightlife', rating: 4.7, price: 60, img: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=500&q=80' }
 ];
 
 export default function ActivitySearchPage() {
   const [query, setQuery] = useState('');
+  const [activitiesList, setActivitiesList] = useState(DEFAULT_ACTIVITIES);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [trips, setTrips] = useState([]);
+  const [addedNotice, setAddedNotice] = useState('');
 
-  const filtered = ACTIVITIES.filter(a =>
+  useEffect(() => {
+    getTrips().then(t => setTrips(t || [])).catch(() => {});
+  }, []);
+
+  const handleAiRecommend = async (cityName = 'Tokyo') => {
+    setAiLoading(true);
+    try {
+      const recs = await recommendActivities({ city_name: cityName, budget_level: 'moderate' });
+      if (Array.isArray(recs)) {
+        const formatted = recs.map((r, idx) => ({
+          id: `ai-rec-${idx}-${Date.now()}`,
+          title: r.name,
+          city: cityName,
+          category: r.category || 'Sightseeing',
+          rating: 5.0,
+          price: r.cost_usd || 40,
+          img: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989?auto=format&fit=crop&w=500&q=80',
+          aiReason: r.recommendation_reason
+        }));
+        setActivitiesList([...formatted, ...DEFAULT_ACTIVITIES]);
+      }
+    } catch (e) {
+      alert(`AI Recommendation error: ${e.message}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAddActivity = async (act) => {
+    const activeTrip = trips[0];
+    const firstStop = activeTrip?.stops?.[0];
+
+    if (!firstStop) {
+      alert('Please add a stop in Itinerary Builder first.');
+      return;
+    }
+
+    try {
+      await assignActivity({
+        stop_id: firstStop.id,
+        custom_name: act.title,
+        category: act.category,
+        cost: act.price,
+        scheduled_time: '14:00'
+      });
+
+      setAddedNotice(`Added "${act.title}" to ${firstStop.city_name || 'your stop'}!`);
+      setTimeout(() => setAddedNotice(''), 3000);
+    } catch (e) {
+      alert(`Could not add activity: ${e.message}`);
+    }
+  };
+
+  const filtered = activitiesList.filter(a =>
     a.title.toLowerCase().includes(query.toLowerCase()) ||
     a.city.toLowerCase().includes(query.toLowerCase()) ||
     a.category.toLowerCase().includes(query.toLowerCase())
@@ -25,9 +83,40 @@ export default function ActivitySearchPage() {
         <TopAppBar title="Activity Search" />
 
         <main className="flex-grow p-margin-page overflow-y-auto max-w-7xl w-full mx-auto space-y-stack-lg">
-          <div className="bg-paper border border-slate p-6 rounded-lg">
-            <h1 className="font-headline-lg text-3xl font-bold text-primary mb-2">Explore Activities & Tours</h1>
-            <p className="font-body-md text-slate mb-6">Discover curated experiences across major world destinations.</p>
+          <div className="bg-paper border border-slate p-6 rounded-lg space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+              <div>
+                <h1 className="font-headline-lg text-2xl md:text-3xl font-bold text-primary">Explore Activities & Tours</h1>
+                <p className="font-body-md text-slate">Discover and add curated experiences to your active trip stops.</p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={aiLoading}
+                  onClick={() => handleAiRecommend('Tokyo')}
+                  className="bg-route-teal text-white font-bold px-4 py-2 rounded text-xs hover:bg-opacity-90 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                  <span>{aiLoading ? 'Asking Gemini AI...' : 'AI Recommend (Tokyo)'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={aiLoading}
+                  onClick={() => handleAiRecommend('Kyoto')}
+                  className="bg-horizon-amber text-ink-navy font-bold px-4 py-2 rounded text-xs hover:bg-opacity-90 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-sm">psychology</span>
+                  <span>AI Recommend (Kyoto)</span>
+                </button>
+              </div>
+            </div>
+
+            {addedNotice && (
+              <div className="p-3 bg-route-teal/10 border border-route-teal text-route-teal font-data-mono text-xs rounded">
+                ✓ {addedNotice}
+              </div>
+            )}
 
             <div className="relative">
               <input
@@ -43,8 +132,8 @@ export default function ActivitySearchPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
             {filtered.map(act => (
-              <div key={act.id} className="bg-paper border border-slate rounded-lg overflow-hidden flex flex-col hover:border-horizon-amber transition-all">
-                <div className="h-40 relative">
+              <div key={act.id} className="bg-paper border border-slate rounded-lg overflow-hidden flex flex-col hover:border-horizon-amber transition-all shadow-sm">
+                <div className="h-40 relative bg-surface-container">
                   <img src={act.img} alt={act.title} className="w-full h-full object-cover" />
                   <span className="absolute top-3 left-3 bg-paper/90 backdrop-blur px-2.5 py-0.5 rounded border border-slate text-xs font-data-mono text-ink-navy">
                     {act.city}
@@ -54,10 +143,19 @@ export default function ActivitySearchPage() {
                   <div>
                     <span className="text-xs font-data-mono text-route-teal">{act.category}</span>
                     <h3 className="font-headline-sm font-bold text-base text-ink-navy mt-1">{act.title}</h3>
+                    {act.aiReason && (
+                      <p className="text-xs font-body-md text-slate mt-1 italic line-clamp-2">"{act.aiReason}"</p>
+                    )}
                   </div>
                   <div className="flex justify-between items-center text-xs font-data-mono pt-3 border-t border-slate">
-                    <span className="text-slate">⭐ {act.rating}</span>
-                    <span className="font-bold text-ink-navy text-sm">{act.price}</span>
+                    <span className="font-bold text-ink-navy text-sm">${act.price}</span>
+                    <button
+                      onClick={() => handleAddActivity(act)}
+                      className="px-3 py-1 bg-horizon-amber text-ink-navy rounded font-bold hover:opacity-90 transition-all flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-xs">add</span>
+                      <span>Add</span>
+                    </button>
                   </div>
                 </div>
               </div>

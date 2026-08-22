@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProfileSettingsPage() {
+  const { user } = useAuth();
+  const [displayName, setDisplayName] = useState(user?.name || 'Jane Traveler');
+  const [currency, setCurrency] = useState('USD');
   const [saved, setSaved] = useState(false);
 
   const handleSave = (e) => {
@@ -19,7 +23,7 @@ export default function ProfileSettingsPage() {
 
         <main className="flex-grow p-margin-page overflow-y-auto max-w-4xl w-full mx-auto space-y-stack-lg py-6">
           <div className="bg-paper border border-slate p-6 rounded-lg">
-            <h1 className="font-headline-lg text-3xl font-bold text-primary mb-1">Profile & Settings</h1>
+            <h1 className="font-headline-lg text-2xl md:text-3xl font-bold text-primary mb-1">Profile & Settings</h1>
             <p className="font-body-md text-slate">Manage your user profile, currency preferences, and notification defaults.</p>
           </div>
 
@@ -32,11 +36,11 @@ export default function ProfileSettingsPage() {
 
             <div className="flex items-center gap-6 pb-6 border-b border-slate">
               <div className="w-20 h-20 rounded-full bg-surface-container-highest border border-slate flex items-center justify-center font-headline-lg text-2xl font-bold text-primary">
-                JT
+                {user?.avatar || 'JT'}
               </div>
               <div>
-                <h3 className="font-headline-sm text-lg font-bold text-ink-navy">Jane Traveler</h3>
-                <p className="font-data-mono text-xs text-slate">jane@globetrotter.io • Member since 2024</p>
+                <h3 className="font-headline-sm text-lg font-bold text-ink-navy">{displayName}</h3>
+                <p className="font-data-mono text-xs text-slate">{user?.email || 'traveler@globetrotter.io'} • Member since 2024</p>
               </div>
             </div>
 
@@ -45,14 +49,19 @@ export default function ProfileSettingsPage() {
                 <label className="block font-headline-sm font-semibold text-ink-navy text-sm mb-2">Display Name</label>
                 <input
                   type="text"
-                  defaultValue="Jane Traveler"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
                   className="w-full bg-paper border border-slate rounded px-4 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                 />
               </div>
 
               <div>
                 <label className="block font-headline-sm font-semibold text-ink-navy text-sm mb-2">Primary Currency</label>
-                <select className="w-full bg-paper border border-slate rounded px-4 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber">
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="w-full bg-paper border border-slate rounded px-4 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                >
                   <option value="USD">USD ($ - United States Dollar)</option>
                   <option value="EUR">EUR (€ - Euro)</option>
                   <option value="JPY">JPY (¥ - Japanese Yen)</option>
