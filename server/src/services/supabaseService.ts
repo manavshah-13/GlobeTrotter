@@ -8,12 +8,11 @@ const _supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const isMock = !process.env.SUPABASE_URL;
 
-export function toValidUUID(id: string): string {
-  if (!id) return "00000000-0000-4000-a000-000000000000";
+export function toValidUUID(id: string): string | null {
+  if (!id) return null;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(id)) return id;
-  const hex = Buffer.from(id).toString("hex").padEnd(32, "0").slice(0, 32);
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(12, 15)}-a${hex.slice(16, 19)}-${hex.slice(19, 31)}`.slice(0, 36);
+  return null;
 }
 
 export const supabase = isMock
