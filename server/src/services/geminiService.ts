@@ -97,9 +97,10 @@ async function callGeminiStructuredAI<T>(
 export async function generateItineraryWithAI(prompt: string, startDate?: string): Promise<GeneratedTripPlan> {
   const systemInstruction = `You are GlobeTrotter's Expert AI Travel Planner.
 Given a user travel prompt, create a detailed, highly realistic multi-city or single-city travel itinerary.
+- PARSE the EXACT number of days requested in the user prompt (e.g., 3 days, 5 days, 7 days) and structure the itinerary total_days to match it precisely.
+- Assign appropriate day_number values (Day 1, Day 2, Day 3... up to N days) to each activity so activities are strictly ordered by day.
 - Ensure city stops follow a logical geographical progression matching the user's requested destinations.
 - Provide realistic cost estimates in USD.
-- Assign appropriate duration_days for each stop.
 - For each day, include 2-3 engaging activities categorized appropriately (Sightseeing, Food, Culture, Adventure, Relaxation, Nightlife).
 - Keep descriptions crisp, inspiring, and concise.`;
 
@@ -177,19 +178,90 @@ Analyze the provided user trips summary and synthesize EXACTLY ONE punchy, execu
 }
 
 // =========================================================================
-// MOCK FALLBACKS (Guarantees dynamic matching for any prompt)
+// MOCK FALLBACKS (Guarantees dynamic day-by-day matching for any prompt)
 // =========================================================================
 function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const lower = prompt.toLowerCase();
+  const dayMatch = prompt.match(/(\d+)\s*-?\s*day[s]?/i);
+  const requestedDays = dayMatch ? Math.max(1, parseInt(dayMatch[1], 10)) : 3;
+
   const isJapan = lower.includes('tokyo') || lower.includes('japan') || lower.includes('kyoto');
   const isThailand = lower.includes('thailand') || lower.includes('bangkok');
   const isFrance = lower.includes('paris') || lower.includes('france');
   const isKashmir = lower.includes('kashmir') || lower.includes('srinagar') || lower.includes('dal lake') || lower.includes('gulmarg') || lower.includes('pahalgam');
 
   if (isKashmir) {
+    const kashmirActivities = [];
+    for (let d = 1; d <= requestedDays; d++) {
+      if (d === 1) {
+        kashmirActivities.push({
+          name: 'Day 1: Shikara Boat Ride on Dal Lake & Floating Market',
+          category: 'Sightseeing',
+          cost: 15,
+          duration_min: 120,
+          description: 'Day 1: Glide across pristine waters of Dal Lake in a traditional wooden shikara boat.',
+          image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
+          day_number: 1,
+          time_slot: 'Morning'
+        });
+        kashmirActivities.push({
+          name: 'Day 1: Mughal Gardens (Shalimar & Nishat Bagh) Exploration',
+          category: 'Culture',
+          cost: 5,
+          duration_min: 150,
+          description: 'Day 1: Stroll through terraced lawns, cascading fountains, and historic Persian gardens.',
+          image_url: 'https://images.unsplash.com/photo-1597074866923-dc0588505c44',
+          day_number: 1,
+          time_slot: 'Afternoon'
+        });
+      } else if (d === 2) {
+        kashmirActivities.push({
+          name: 'Day 2: Gulmarg Gondola Cable Car Ride to Apharwat Peak',
+          category: 'Adventure',
+          cost: 25,
+          duration_min: 180,
+          description: 'Day 2: Ride one of the highest cable cars in the world for spectacular Himalayan snow views.',
+          image_url: 'https://images.unsplash.com/photo-1548013146-72479768bada',
+          day_number: 2,
+          time_slot: 'Morning'
+        });
+        kashmirActivities.push({
+          name: 'Day 2: Traditional Kashmiri Wazwan Culinary Feast',
+          category: 'Food',
+          cost: 20,
+          duration_min: 90,
+          description: 'Day 2: Enjoy authentic Kashmiri rogan josh, gushtaba, and kahwa tea.',
+          image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
+          day_number: 2,
+          time_slot: 'Evening'
+        });
+      } else {
+        kashmirActivities.push({
+          name: `Day ${d}: Pahalgam Aru & Betaab Valley Scenic Nature Walk`,
+          category: 'Sightseeing',
+          cost: 15,
+          duration_min: 180,
+          description: `Day ${d}: Explore lush pine forests and crystalline Lidder River in Pahalgam.`,
+          image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800',
+          day_number: d,
+          time_slot: 'Morning'
+        });
+        kashmirActivities.push({
+          name: `Day ${d}: Local Handicraft & Saffron Market Shopping`,
+          category: 'Culture',
+          cost: 30,
+          duration_min: 120,
+          description: `Day ${d}: Shop for authentic Pashmina shawls, hand-carved walnut wood, and pure Kashmiri saffron.`,
+          image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
+          day_number: d,
+          time_slot: 'Afternoon'
+        });
+      }
+    }
+
     return {
-      name: 'Paradise on Earth: Kashmir & Dal Lake Expedition',
-      description: 'Explore breathtaking shikara rides on Dal Lake, alpine snow peaks in Gulmarg, and scenic valleys in Pahalgam.',
+      name: `${requestedDays}-Day Kashmir & Dal Lake Expedition`,
+      description: `A ${requestedDays}-day journey exploring shikara rides on Dal Lake, alpine snow peaks in Gulmarg, and scenic valleys.`,
       cover_photo: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
       stops: [
         {
@@ -198,175 +270,16 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
           cost_index: 2,
           popularity: 95,
           city_image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
-          duration_days: 3,
-          activities: [
-            {
-              name: 'Shikara Boat Ride on Dal Lake & Floating Market',
-              category: 'Sightseeing',
-              cost: 15,
-              duration_min: 120,
-              description: 'Glide across pristine waters of Dal Lake in a traditional wooden shikara boat.',
-              image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
-              day_number: 1,
-              time_slot: 'Morning'
-            },
-            {
-              name: 'Mughal Gardens (Shalimar & Nishat Bagh) Exploration',
-              category: 'Culture',
-              cost: 5,
-              duration_min: 150,
-              description: 'Stroll through terraced lawns, cascading fountains, and historic Persian gardens.',
-              image_url: 'https://images.unsplash.com/photo-1597074866923-dc0588505c44',
-              day_number: 1,
-              time_slot: 'Afternoon'
-            }
-          ]
-        },
-        {
-          city_name: 'Gulmarg',
-          country: 'India',
-          cost_index: 3,
-          popularity: 92,
-          city_image_url: 'https://images.unsplash.com/photo-1548013146-72479768bada',
-          duration_days: 2,
-          activities: [
-            {
-              name: 'Gulmarg Gondola Cable Car Ride to Apharwat Peak',
-              category: 'Adventure',
-              cost: 25,
-              duration_min: 180,
-              description: 'Ride one of the highest cable cars in the world for spectacular Himalayan snow views.',
-              image_url: 'https://images.unsplash.com/photo-1548013146-72479768bada',
-              day_number: 1,
-              time_slot: 'Morning'
-            }
-          ]
+          duration_days: requestedDays,
+          day_start: 1,
+          day_end: requestedDays,
+          activities: kashmirActivities
         }
       ]
     };
   }
 
-  if (isJapan) {
-    return {
-      name: 'Exquisite Voyage through Tokyo & Kyoto',
-      description: 'Experience the harmonious blend of high-tech modernity and timeless tradition in Japan.',
-      cover_photo: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26',
-      stops: [
-        {
-          city_name: 'Tokyo',
-          country: 'Japan',
-          cost_index: 4,
-          popularity: 98,
-          city_image_url: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf',
-          duration_days: 3,
-          activities: [
-            {
-              name: 'Shibuya Crossing & Meiji Shrine Tour',
-              category: 'Sightseeing',
-              cost: 25,
-              duration_min: 180,
-              description: 'Walk through the famous scramble crossing and visit tranquil Meiji Jingu shrine.',
-              image_url: 'https://images.unsplash.com/photo-1542051841857-5f90071e7989',
-              day_number: 1,
-              time_slot: 'Morning'
-            },
-            {
-              name: 'Tsukiji Outer Market Culinary Exploration',
-              category: 'Food',
-              cost: 45,
-              duration_min: 120,
-              description: 'Sample fresh sushi, wagyu skewers, and matcha sweets.',
-              image_url: 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c',
-              day_number: 1,
-              time_slot: 'Afternoon'
-            }
-          ]
-        },
-        {
-          city_name: 'Kyoto',
-          country: 'Japan',
-          cost_index: 3,
-          popularity: 95,
-          city_image_url: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e',
-          duration_days: 2,
-          activities: [
-            {
-              name: 'Fushimi Inari Taisha Shrine Walk',
-              category: 'Culture',
-              cost: 0,
-              duration_min: 150,
-              description: 'Hike through thousands of vibrant vermilion torii gates.',
-              image_url: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e',
-              day_number: 1,
-              time_slot: 'Morning'
-            }
-          ]
-        }
-      ]
-    };
-  }
-
-  if (isThailand) {
-    return {
-      name: 'Backpacker Paradise: Thailand Adventure',
-      description: 'Explore vibrant street markets, pristine beaches, and ancient temples on a budget.',
-      cover_photo: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365',
-      stops: [
-        {
-          city_name: 'Bangkok',
-          country: 'Thailand',
-          cost_index: 2,
-          popularity: 92,
-          city_image_url: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365',
-          duration_days: 5,
-          activities: [
-            {
-              name: 'Grand Palace & Wat Pho Tour',
-              category: 'Culture',
-              cost: 15,
-              duration_min: 180,
-              description: 'Marvel at gold-spired architecture and the giant Reclining Buddha.',
-              image_url: 'https://images.unsplash.com/photo-1563492065599-3520f775eeed',
-              day_number: 1,
-              time_slot: 'Morning'
-            }
-          ]
-        }
-      ]
-    };
-  }
-
-  if (isFrance) {
-    return {
-      name: 'Romantic Paris Luxury Experience',
-      description: 'Indulge in haute cuisine, iconic landmarks, and elegant boutique experiences in the City of Light.',
-      cover_photo: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34',
-      stops: [
-        {
-          city_name: 'Paris',
-          country: 'France',
-          cost_index: 5,
-          popularity: 99,
-          city_image_url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34',
-          duration_days: 3,
-          activities: [
-            {
-              name: 'Eiffel Tower Sunset Champagne Dinner',
-              category: 'Food',
-              cost: 250,
-              duration_min: 180,
-              description: 'Gourmet French dinner overlooking illuminated Paris skyline.',
-              image_url: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34',
-              day_number: 1,
-              time_slot: 'Evening'
-            }
-          ]
-        }
-      ]
-    };
-  }
-
-  // Dynamic Location Extraction for ANY user prompt
+  // Dynamic Location & Day Extraction for ANY user prompt
   const cleanPrompt = prompt
     .replace(/\d+\s*-?\s*day[s]?/gi, '')
     .replace(/(trip|expedition|adventure|in|to|for|on|a|the|budget|luxury|backpacking|culinary|hiking)/gi, '')
@@ -376,9 +289,33 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     ? cleanPrompt.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
     : 'Custom Destination';
 
+  const generatedActivities = [];
+  for (let d = 1; d <= requestedDays; d++) {
+    generatedActivities.push({
+      name: `Day ${d}: ${mainLocation} Morning Exploration & City Highlights`,
+      category: 'Sightseeing',
+      cost: Math.round(25 + (d * 5)),
+      duration_min: 180,
+      description: `Day ${d} morning tour of iconic landmarks, cultural hotspots, and scenic vistas in ${mainLocation}.`,
+      image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+      day_number: d,
+      time_slot: 'Morning'
+    });
+    generatedActivities.push({
+      name: `Day ${d}: ${mainLocation} Culinary Tasting & Evening Walk`,
+      category: 'Food',
+      cost: Math.round(15 + (d * 3)),
+      duration_min: 120,
+      description: `Day ${d} evening tasting of local traditional specialties and artisanal foods in ${mainLocation}.`,
+      image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
+      day_number: d,
+      time_slot: 'Afternoon'
+    });
+  }
+
   return {
-    name: `${mainLocation} Expedition & Highlights`,
-    description: `A custom-tailored travel plan exploring top sights, local culture, and scenic highlights in ${mainLocation}.`,
+    name: `${requestedDays}-Day ${mainLocation} Expedition`,
+    description: `A custom ${requestedDays}-day travel itinerary exploring top sights, local culture, and scenic highlights in ${mainLocation}.`,
     cover_photo: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
     stops: [
       {
@@ -387,39 +324,10 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
         cost_index: 3,
         popularity: 90,
         city_image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
-        duration_days: 3,
-        activities: [
-          {
-            name: `${mainLocation} Scenic Tour & City Highlights`,
-            category: 'Sightseeing',
-            cost: 45,
-            duration_min: 180,
-            description: `Guided exploration of iconic landmarks and scenic landscapes in ${mainLocation}.`,
-            image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
-            day_number: 1,
-            time_slot: 'Morning'
-          },
-          {
-            name: `Local Cultural & Food Tasting in ${mainLocation}`,
-            category: 'Food',
-            cost: 30,
-            duration_min: 120,
-            description: `Sample regional delicacies, street food, and authentic traditional dishes in ${mainLocation}.`,
-            image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
-            day_number: 1,
-            time_slot: 'Afternoon'
-          },
-          {
-            name: `${mainLocation} Nature Walk & Sunset Viewpoint`,
-            category: 'Adventure',
-            cost: 15,
-            duration_min: 150,
-            description: `Enjoy panoramic views and relaxing trails across ${mainLocation}.`,
-            image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800',
-            day_number: 2,
-            time_slot: 'Evening'
-          }
-        ]
+        duration_days: requestedDays,
+        day_start: 1,
+        day_end: requestedDays,
+        activities: generatedActivities
       }
     ]
   };

@@ -32,7 +32,16 @@ export default function DashboardPage() {
   const latestTrip = trips[0];
   const stops = latestTrip?.stops || [];
   const totalActivities = stops.reduce((acc, st) => acc + (st.trip_activities?.length || 0), 0);
-  const totalCost = stops.reduce((acc, st) => acc + (st.trip_activities || []).reduce((s, a) => s + (Number(a.cost) || 0), 0), 0);
+  const activitiesTotal = stops.reduce((acc, st) => acc + (st.trip_activities || []).reduce((s, a) => s + (Number(a.cost) || 0), 0), 0);
+
+  const startMs = latestTrip?.start_date ? new Date(latestTrip.start_date).getTime() : Date.now();
+  const endMs = latestTrip?.end_date ? new Date(latestTrip.end_date).getTime() : Date.now() + 86400000 * 3;
+  const daysCount = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) || (stops.length * 2) || 3);
+
+  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 60 : 50) : 0;
+  const lodgingTotal = stops.length > 0 ? daysCount * 75 : 0;
+  const foodTotal = stops.length > 0 ? daysCount * 40 : 0;
+  const totalCost = activitiesTotal + transitTotal + lodgingTotal + foodTotal;
 
   return (
     <div className="bg-background text-on-background min-h-screen flex">

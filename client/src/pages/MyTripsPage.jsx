@@ -198,7 +198,7 @@ export default function MyTripsPage() {
 
                           <div className="pt-2 flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-xs font-data-mono border-t border-slate/40">
                             <span className="text-slate">
-                              Waypoints: <strong className="text-ink-navy">{stopNames}</strong> • {stops.length} Stops • Activities: <strong className="text-ink-navy">₹{totalCost}</strong>
+                              Waypoints: <strong className="text-ink-navy">{stopNames}</strong> • {stops.length} Stops • Activities: <strong className="text-ink-navy">${totalCost.toLocaleString()}</strong>
                             </span>
                             
                             <div className="flex items-center gap-2">

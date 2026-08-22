@@ -39,13 +39,18 @@ export default function ItineraryViewPage() {
   }, [tripIdParam]);
 
   const stops = trip?.stops || [];
-  const totalActivitiesCost = stops.reduce((acc, st) => {
+  const activitiesTotal = stops.reduce((acc, st) => {
     return acc + (st.trip_activities || []).reduce((sum, a) => sum + (Number(a.cost) || 0), 0);
   }, 0);
 
-  const estimatedStayCost = stops.length * 150;
-  const estimatedFlightCost = 650;
-  const grandTotal = totalActivitiesCost + estimatedStayCost + estimatedFlightCost;
+  const startMs = trip?.start_date ? new Date(trip.start_date).getTime() : Date.now();
+  const endMs = trip?.end_date ? new Date(trip.end_date).getTime() : Date.now() + 86400000 * 3;
+  const daysCount = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) || (stops.length * 2) || 3);
+
+  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 60 : 50) : 0;
+  const lodgingTotal = stops.length > 0 ? daysCount * 75 : 0;
+  const foodTotal = stops.length > 0 ? daysCount * 40 : 0;
+  const grandTotal = activitiesTotal + transitTotal + lodgingTotal + foodTotal;
 
   return (
     <div className="bg-background text-on-background min-h-screen flex">
@@ -82,7 +87,7 @@ export default function ItineraryViewPage() {
                     {trip.name}
                   </h1>
                   <p className="font-data-mono text-sm text-slate">
-                    {trip.start_date} → {trip.end_date} • {stops.length} Cities / Stops
+                    {trip.start_date} → {trip.end_date} • {daysCount} Days • {stops.length} Stops • Total Est: ${grandTotal.toLocaleString()}
                   </p>
                   {trip.description && (
                     <p className="font-body-md text-xs text-slate mt-2 max-w-2xl">{trip.description}</p>
@@ -157,8 +162,18 @@ export default function ItineraryViewPage() {
                       const country = stop.country || stop.cities?.country || '';
                       const activities = stop.trip_activities || [];
 
+                      // Group activities by day_number
+                      const groupedByDay = activities.reduce((acc, act, actIdx) => {
+                        const dayNum = act.day_number || (Math.floor(actIdx / 2) + 1);
+                        if (!acc[dayNum]) acc[dayNum] = [];
+                        acc[dayNum].push(act);
+                        return acc;
+                      }, {});
+
+                      const dayKeys = Object.keys(groupedByDay).sort((a, b) => Number(a) - Number(b));
+
                       return (
-                        <div key={stop.id || sIdx} className="bg-paper border border-slate p-6 rounded-lg space-y-4 shadow-sm">
+                        <div key={stop.id || sIdx} className="bg-paper border border-slate p-6 rounded-lg space-y-6 shadow-sm">
                           <div className="flex justify-between items-center border-b border-slate pb-3">
                             <h2 className="font-headline-md text-lg font-bold text-ink-navy flex items-center gap-2">
                               <span className="material-symbols-outlined text-route-teal">location_on</span>
@@ -173,33 +188,63 @@ export default function ItineraryViewPage() {
                             <p className="text-xs font-data-mono text-slate italic p-2 bg-surface-container rounded">
                               No activities scheduled for this stop.
                             </p>
-                          ) : (
+                          ) : dayKeys.length === 0 ? (
                             <div className="space-y-3 font-body-md text-sm">
                               {activities.map((act, aIdx) => (
                                 <div key={act.id || aIdx} className="flex items-start justify-between p-3.5 bg-surface-container rounded-lg border border-slate/50">
                                   <div className="flex items-start gap-3">
-                                    <span className="font-data-mono text-xs font-bold text-route-teal w-14 flex-shrink-0 pt-0.5">
-                                      {act.scheduled_time || '10:00'}
-                                    </span>
+                                    <div className="w-7 h-7 rounded bg-paper border border-slate flex items-center justify-center font-data-mono text-xs font-bold text-ink-navy mt-0.5">
+                                      {aIdx + 1}
+                                    </div>
                                     <div>
-                                      <div className="font-bold text-ink-navy flex items-center gap-2">
-                                        <span>{act.custom_name}</span>
-                                        <span className="px-2 py-0.2 bg-paper border border-slate text-[10px] font-data-mono uppercase text-slate rounded">
-                                          {act.category || 'Sightseeing'}
-                                        </span>
+                                      <h3 className="font-bold text-ink-navy text-sm">{act.custom_name}</h3>
+                                      <div className="flex items-center gap-3 text-xs text-slate font-data-mono mt-0.5">
+                                        <span className="text-horizon-amber uppercase font-bold">{act.category || 'Sightseeing'}</span>
+                                        <span>•</span>
+                                        <span>Time: {act.scheduled_time || '10:00'}</span>
                                       </div>
-                                      {act.description && (
-                                        <div className="text-xs text-slate mt-0.5">{act.description}</div>
-                                      )}
                                     </div>
                                   </div>
-
-                                  <div className="font-data-mono font-bold text-xs text-ink-navy pl-2 flex-shrink-0">
-                                    ₹{act.cost ?? 0}
-                                  </div>
+                                  <span className="font-data-mono font-bold text-sm text-ink-navy bg-paper border border-slate px-2.5 py-1 rounded">
+                                    ${act.cost || 0}
+                                  </span>
                                 </div>
                               ))}
                             </div>
+                          ) : (
+                            dayKeys.map((dayNum) => (
+                              <div key={dayNum} className="space-y-3">
+                                <div className="flex items-center gap-2 border-b border-slate/40 pb-1">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-horizon-amber"></span>
+                                  <h3 className="font-headline-sm font-bold text-sm text-ink-navy uppercase font-data-mono">
+                                    Day {dayNum} Schedule
+                                  </h3>
+                                </div>
+
+                                <div className="space-y-3 pl-3 border-l-2 border-horizon-amber/40">
+                                  {groupedByDay[dayNum].map((act, aIdx) => (
+                                    <div key={act.id || aIdx} className="flex items-start justify-between p-3.5 bg-surface-container rounded-lg border border-slate/50">
+                                      <div className="flex items-start gap-3">
+                                        <div className="w-7 h-7 rounded bg-paper border border-slate flex items-center justify-center font-data-mono text-xs font-bold text-ink-navy mt-0.5">
+                                          {aIdx + 1}
+                                        </div>
+                                        <div>
+                                          <h4 className="font-bold text-ink-navy text-sm">{act.custom_name}</h4>
+                                          <div className="flex items-center gap-3 text-xs text-slate font-data-mono mt-0.5">
+                                            <span className="text-horizon-amber uppercase font-bold">{act.category || 'Sightseeing'}</span>
+                                            <span>•</span>
+                                            <span>Time: {act.scheduled_time || '10:00'}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <span className="font-data-mono font-bold text-sm text-ink-navy bg-paper border border-slate px-2.5 py-1 rounded">
+                                        ${act.cost || 0}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))
                           )}
                         </div>
                       );
@@ -207,35 +252,42 @@ export default function ItineraryViewPage() {
                   )}
                 </div>
 
-                {/* Side Overview Panel */}
+                {/* Right Summary Sidebar */}
                 <div className="space-y-6">
                   <div className="bg-paper border border-slate p-6 rounded-lg space-y-4">
-                    <h3 className="font-headline-sm text-lg font-bold text-ink-navy">Trip Budget Summary</h3>
-                    <div className="space-y-2 text-sm font-data-mono">
-                      <div className="flex justify-between text-slate">
-                        <span>Flights / Transit:</span>
-                        <span className="text-ink-navy font-bold">₹{estimatedFlightCost}</span>
+                    <h3 className="font-headline-sm text-lg font-bold text-ink-navy border-b border-slate pb-3">Financial Overview</h3>
+
+                    <div className="space-y-3 font-data-mono text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate">Activities Total:</span>
+                        <strong className="text-ink-navy">${activitiesTotal}</strong>
                       </div>
-                      <div className="flex justify-between text-slate">
-                        <span>Lodging ({stops.length} Cities):</span>
-                        <span className="text-ink-navy font-bold">₹{estimatedStayCost}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate">Transit & Transfers:</span>
+                        <strong className="text-ink-navy">${transitTotal}</strong>
                       </div>
-                      <div className="flex justify-between text-slate">
-                        <span>Activities ({stops.reduce((s, st) => s + (st.trip_activities?.length || 0), 0)} Total):</span>
-                        <span className="text-ink-navy font-bold">₹{totalActivitiesCost}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate">Lodging & Accommodations:</span>
+                        <strong className="text-ink-navy">${lodgingTotal}</strong>
                       </div>
-                      <div className="pt-2 border-t border-slate flex justify-between font-bold text-ink-navy text-base">
-                        <span>Estimated Total:</span>
-                        <span className="text-horizon-amber">₹{grandTotal}</span>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate">Estimated Meals:</span>
+                        <strong className="text-ink-navy">${foodTotal}</strong>
+                      </div>
+                      <div className="pt-3 border-t border-slate flex justify-between items-center text-sm font-bold">
+                        <span className="text-ink-navy">Grand Total:</span>
+                        <span className="text-horizon-amber">${grandTotal.toLocaleString()}</span>
                       </div>
                     </div>
 
-                    <Link
-                      to="/budget"
-                      className="block w-full text-center bg-surface-container border border-slate py-2 rounded font-data-mono text-xs text-ink-navy hover:bg-surface-container-high"
-                    >
-                      View Full Budget Breakdown →
-                    </Link>
+                    <div className="pt-2">
+                      <Link
+                        to={`/budget?tripId=${trip.id}`}
+                        className="block w-full text-center py-2.5 bg-surface-container border border-slate rounded font-headline-sm text-xs text-ink-navy font-bold hover:bg-surface-container-high transition-colors"
+                      >
+                        View Full Budget Breakdown →
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>
