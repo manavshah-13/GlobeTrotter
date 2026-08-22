@@ -102,3 +102,24 @@ export async function removeActivity(activityId) {
     method: 'DELETE',
   });
 }
+
+// --- Copy Trip ---
+export async function copyTrip(sourceTripId, targetUserId) {
+  return fetchApi('/trips/copy', {
+    method: 'POST',
+    body: JSON.stringify({
+      source_trip_id: sourceTripId,
+      target_user_id: targetUserId
+    })
+  });
+}
+
+// --- Admin Analytics ---
+export async function getAdminMetrics() {
+  return fetchApi('/admin/metrics');
+}
+
+export async function getAdminInsight() {
+  return fetchApi('/admin-insight');
+}
+

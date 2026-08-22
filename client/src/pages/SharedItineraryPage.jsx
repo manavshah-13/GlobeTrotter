@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { TopAppBar } from '../components/Navigation';
-import { getTripDetails, getTrips } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { getTripDetails, getTrips, copyTrip } from '../services/api';
 
 export default function SharedItineraryPage() {
   const [searchParams] = useSearchParams();
   const tripIdParam = searchParams.get('tripId');
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
 
   const [trip, setTrip] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +43,25 @@ export default function SharedItineraryPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCloneTrip = async () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    if (!trip) return;
+
+    setCloning(true);
+    try {
+      const response = await copyTrip(trip.id, user?.id || 'traveler-123');
+      const newTripId = response.new_trip_id || response.trip?.id;
+      navigate(`/builder?tripId=${newTripId}`);
+    } catch (err) {
+      alert(`Could not duplicate trip: ${err.message}`);
+      setCloning(false);
+    }
+  };
+
   const stops = trip?.stops || [];
 
   return (
@@ -59,21 +82,31 @@ export default function SharedItineraryPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={copyShareLink}
-              className="bg-horizon-amber text-ink-navy font-bold px-4 py-2.5 rounded hover:bg-opacity-90 transition-all flex items-center gap-2 text-sm"
+              className="bg-paper border border-slate text-ink-navy font-bold px-4 py-2.5 rounded hover:bg-surface-container transition-all flex items-center gap-2 text-sm"
             >
               <span className="material-symbols-outlined text-base">content_copy</span>
               <span>{copied ? 'Link Copied!' : 'Copy Share Link'}</span>
             </button>
-            <Link
-              to="/signup"
-              className="bg-primary text-white font-bold px-4 py-2.5 rounded hover:bg-opacity-90 transition-all flex items-center gap-1.5 text-sm"
+            <button
+              onClick={handleCloneTrip}
+              disabled={cloning}
+              className="bg-horizon-amber text-ink-navy font-bold px-5 py-2.5 rounded hover:bg-opacity-90 transition-all flex items-center gap-2 text-sm disabled:opacity-50"
             >
-              <span>Clone Trip</span>
-              <span className="material-symbols-outlined text-base">file_copy</span>
-            </Link>
+              {cloning ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-ink-navy border-t-transparent rounded-full animate-spin"></div>
+                  <span>Cloning Trip...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-base">file_copy</span>
+                  <span>Copy Trip to My Account</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
