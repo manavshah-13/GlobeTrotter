@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "build": "tsc",
     "start": "tsx src/server.ts",
     "test:ai": "tsx test-ai-endpoints.ts"
   },
