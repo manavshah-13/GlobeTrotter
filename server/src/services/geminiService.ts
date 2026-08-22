@@ -93,7 +93,7 @@ async function callGeminiStructuredAI<T>(
 export async function generateItineraryWithAI(prompt: string, startDate?: string): Promise<GeneratedTripPlan> {
   const systemInstruction = `You are GlobeTrotter's Expert AI Travel Planner.
 Given a user travel prompt, create a detailed, highly realistic multi-city or single-city travel itinerary.
-- Ensure city stops follow a logical geographical progression.
+- Ensure city stops follow a logical geographical progression matching the user's requested destinations.
 - Provide realistic cost estimates in USD.
 - Assign appropriate duration_days for each stop.
 - For each day, include 2-3 engaging activities categorized appropriately (Sightseeing, Food, Culture, Adventure, Relaxation, Nightlife).
@@ -167,18 +167,80 @@ Analyze the provided user trips summary and synthesize EXACTLY ONE punchy, execu
   } catch (error) {
     console.error('[GeminiService] AI admin insight failed, using fallback:', (error as Error).message);
     return {
-      insight: 'Most-requested destination this week: Tokyo with budget-friendly itineraries.'
+      insight: 'Most-requested destination this week: Kashmir and Tokyo with budget-friendly itineraries.'
     };
   }
 }
 
 // =========================================================================
-// MOCK FALLBACKS (Guarantees zero downtime and 100% test reliability)
+// MOCK FALLBACKS (Guarantees dynamic matching for any prompt)
 // =========================================================================
 function getFallbackItinerary(prompt: string): GeneratedTripPlan {
-  const isJapan = prompt.toLowerCase().includes('tokyo') || prompt.toLowerCase().includes('japan') || prompt.toLowerCase().includes('kyoto');
-  const isThailand = prompt.toLowerCase().includes('thailand') || prompt.toLowerCase().includes('bangkok');
-  const isFrance = prompt.toLowerCase().includes('paris') || prompt.toLowerCase().includes('france');
+  const lower = prompt.toLowerCase();
+  const isJapan = lower.includes('tokyo') || lower.includes('japan') || lower.includes('kyoto');
+  const isThailand = lower.includes('thailand') || lower.includes('bangkok');
+  const isFrance = lower.includes('paris') || lower.includes('france');
+  const isKashmir = lower.includes('kashmir') || lower.includes('srinagar') || lower.includes('dal lake') || lower.includes('gulmarg') || lower.includes('pahalgam');
+
+  if (isKashmir) {
+    return {
+      name: 'Paradise on Earth: Kashmir & Dal Lake Expedition',
+      description: 'Explore breathtaking shikara rides on Dal Lake, alpine snow peaks in Gulmarg, and scenic valleys in Pahalgam.',
+      cover_photo: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
+      stops: [
+        {
+          city_name: 'Srinagar',
+          country: 'India',
+          cost_index: 2,
+          popularity: 95,
+          city_image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
+          duration_days: 3,
+          activities: [
+            {
+              name: 'Shikara Boat Ride on Dal Lake & Floating Market',
+              category: 'Sightseeing',
+              cost: 15,
+              duration_min: 120,
+              description: 'Glide across pristine waters of Dal Lake in a traditional wooden shikara boat.',
+              image_url: 'https://images.unsplash.com/photo-1566837945700-30057527ade0',
+              day_number: 1,
+              time_slot: 'Morning'
+            },
+            {
+              name: 'Mughal Gardens (Shalimar & Nishat Bagh) Exploration',
+              category: 'Culture',
+              cost: 5,
+              duration_min: 150,
+              description: 'Stroll through terraced lawns, cascading fountains, and historic Persian gardens.',
+              image_url: 'https://images.unsplash.com/photo-1597074866923-dc0588505c44',
+              day_number: 1,
+              time_slot: 'Afternoon'
+            }
+          ]
+        },
+        {
+          city_name: 'Gulmarg',
+          country: 'India',
+          cost_index: 3,
+          popularity: 92,
+          city_image_url: 'https://images.unsplash.com/photo-1548013146-72479768bada',
+          duration_days: 2,
+          activities: [
+            {
+              name: 'Gulmarg Gondola Cable Car Ride to Apharwat Peak',
+              category: 'Adventure',
+              cost: 25,
+              duration_min: 180,
+              description: 'Ride one of the highest cable cars in the world for spectacular Himalayan snow views.',
+              image_url: 'https://images.unsplash.com/photo-1548013146-72479768bada',
+              day_number: 1,
+              time_slot: 'Morning'
+            }
+          ]
+        }
+      ]
+    };
+  }
 
   if (isJapan) {
     return {
@@ -265,26 +327,6 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
               time_slot: 'Morning'
             }
           ]
-        },
-        {
-          city_name: 'Chiang Mai',
-          country: 'Thailand',
-          cost_index: 1,
-          popularity: 88,
-          city_image_url: 'https://images.unsplash.com/photo-1512553353614-82a7370096dc',
-          duration_days: 5,
-          activities: [
-            {
-              name: 'Doi Suthep Temple Sunset View',
-              category: 'Sightseeing',
-              cost: 5,
-              duration_min: 120,
-              description: 'Panoramic mountain views overlooking the old city.',
-              image_url: 'https://images.unsplash.com/photo-1512553353614-82a7370096dc',
-              day_number: 1,
-              time_slot: 'Evening'
-            }
-          ]
         }
       ]
     };
@@ -320,49 +362,58 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     };
   }
 
-  // Default fallback for general prompts (e.g. "A 4-day culinary trip in Italy")
+  // Dynamic Location Extraction for ANY user prompt
+  const cleanPrompt = prompt
+    .replace(/\d+\s*-?\s*day[s]?/gi, '')
+    .replace(/(trip|expedition|adventure|in|to|for|on|a|the|budget|luxury|backpacking|culinary|hiking)/gi, '')
+    .trim();
+
+  const mainLocation = cleanPrompt
+    ? cleanPrompt.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')
+    : 'Custom Destination';
+
   return {
-    name: 'Authentic Culinary Journey in Rome & Florence',
-    description: 'Immerse your palate in handmade pasta, local truffles, artisan gelato, and historic vineyards.',
-    cover_photo: 'https://images.unsplash.com/photo-1516483638261-f4dbaf036963',
+    name: `${mainLocation} Expedition & Highlights`,
+    description: `A custom-tailored travel plan exploring top sights, local culture, and scenic highlights in ${mainLocation}.`,
+    cover_photo: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
     stops: [
       {
-        city_name: 'Rome',
-        country: 'Italy',
+        city_name: mainLocation,
+        country: 'Travel Destination',
         cost_index: 3,
-        popularity: 96,
-        city_image_url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5',
-        duration_days: 2,
+        popularity: 90,
+        city_image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+        duration_days: 3,
         activities: [
           {
-            name: 'Trastevere Secret Food & Wine Walk',
-            category: 'Food',
-            cost: 85,
-            duration_min: 210,
-            description: 'Tasting cured meats, pecorino cheese, carbonara, and organic wines in cobblestone alleys.',
-            image_url: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5',
-            day_number: 1,
-            time_slot: 'Evening'
-          }
-        ]
-      },
-      {
-        city_name: 'Florence',
-        country: 'Italy',
-        cost_index: 3,
-        popularity: 94,
-        city_image_url: 'https://images.unsplash.com/photo-1543429776-2782fc8e1acd',
-        duration_days: 2,
-        activities: [
-          {
-            name: 'Tuscan Truffle & Pasta Masterclass',
-            category: 'Culture',
-            cost: 110,
+            name: `${mainLocation} Scenic Tour & City Highlights`,
+            category: 'Sightseeing',
+            cost: 45,
             duration_min: 180,
-            description: 'Hands-on cooking class with a local chef making fresh tagliatelle.',
-            image_url: 'https://images.unsplash.com/photo-1543429776-2782fc8e1acd',
+            description: `Guided exploration of iconic landmarks and scenic landscapes in ${mainLocation}.`,
+            image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+            day_number: 1,
+            time_slot: 'Morning'
+          },
+          {
+            name: `Local Cultural & Food Tasting in ${mainLocation}`,
+            category: 'Food',
+            cost: 30,
+            duration_min: 120,
+            description: `Sample regional delicacies, street food, and authentic traditional dishes in ${mainLocation}.`,
+            image_url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
             day_number: 1,
             time_slot: 'Afternoon'
+          },
+          {
+            name: `${mainLocation} Nature Walk & Sunset Viewpoint`,
+            category: 'Adventure',
+            cost: 15,
+            duration_min: 150,
+            description: `Enjoy panoramic views and relaxing trails across ${mainLocation}.`,
+            image_url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800',
+            day_number: 2,
+            time_slot: 'Evening'
           }
         ]
       }
