@@ -1,54 +1,67 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+
 import {
   generateItineraryHandler,
   recommendActivitiesHandler,
   estimateBudgetHandler,
-  adminInsightHandler
-} from './controllers/aiController.js';
+  adminInsightHandler,
+} from "./controllers/aiController.js";
+
+import {
+  createTripManual,
+  getTripDetails,
+  deleteTrip,
+  addStop,
+  reorderStops,
+  removeStop,
+  assignActivityToStop,
+  removeActivityFromStop,
+  getCityCatalog,
+  getActivityCatalog,
+  copyTripHandler,
+  getTripBudget,
+  getAdminMetrics,
+} from "./controllers/backendController.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors({ origin: '*' }));
-app.use(express.json({ limit: '10mb' }));
+app.use(cors());
+app.use(express.json());
 
 // Health Check
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', service: 'GlobeTrotter AI Backend', timestamp: new Date().toISOString() });
+app.get("/api/health", (req, res) => {
+  res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
-// AI API Routes
-app.post('/api/generate-itinerary', generateItineraryHandler);
-app.get('/api/generate-itinerary', generateItineraryHandler);
+// --- AI Automation Endpoints ---
+app.post("/api/generate-itinerary", generateItineraryHandler);
+app.all("/api/recommend-activities", recommendActivitiesHandler);
+app.all("/api/estimate-budget", estimateBudgetHandler);
+app.all("/api/admin-insight", adminInsightHandler);
 
-app.post('/api/recommend-activities', recommendActivitiesHandler);
-app.get('/api/recommend-activities', recommendActivitiesHandler);
+// --- Core Backend Endpoints ---
+app.post("/api/trips", createTripManual);
+app.get("/api/trips/:id", getTripDetails);
+app.delete("/api/trips/:id", deleteTrip);
+app.get("/api/trips/:id/budget", getTripBudget);
+app.post("/api/trips/copy", copyTripHandler);
 
-app.post('/api/estimate-budget', estimateBudgetHandler);
-app.get('/api/estimate-budget', estimateBudgetHandler);
+app.post("/api/stops", addStop);
+app.post("/api/stops/reorder", reorderStops);
+app.delete("/api/stops/:id", removeStop);
 
-app.post('/api/admin-insight', adminInsightHandler);
-app.get('/api/admin-insight', adminInsightHandler);
+app.post("/api/trip-activities", assignActivityToStop);
+app.delete("/api/trip-activities/:id", removeActivityFromStop);
 
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({ error: `Route not found: ${req.method} ${req.path}` });
+app.get("/api/cities", getCityCatalog);
+app.get("/api/activities", getActivityCatalog);
+app.get("/api/admin/metrics", getAdminMetrics);
+
+app.listen(PORT, () => {
+  console.log(`🚀 GlobeTrotter Unified Backend listening on port ${PORT}`);
 });
-
-// Start Server if directly invoked
-if (process.env.NODE_ENV !== 'test' && !process.env.TEST_SUITE_RUNNING) {
-  app.listen(PORT, () => {
-    console.log(`🚀 GlobeTrotter AI Backend running on http://localhost:${PORT}`);
-    console.log(`- POST/GET /api/generate-itinerary`);
-    console.log(`- POST/GET /api/recommend-activities`);
-    console.log(`- POST/GET /api/estimate-budget`);
-    console.log(`- POST/GET /api/admin-insight`);
-  });
-}
-
-export default app;

@@ -1,345 +1,161 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
-import dotenv from 'dotenv';
-import { GeneratedTripPlan } from '../types/ai-schemas.js';
+import { createClient } from "@supabase/supabase-js";
+import { ItineraryResponse } from "../types/ai-schemas.js";
 
-dotenv.config();
+const supabaseUrl = process.env.SUPABASE_URL || "https://mock.supabase.co";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "mock-key";
 
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const _supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-let supabase: SupabaseClient | null = null;
+const isMock = !process.env.SUPABASE_URL;
 
-if (
-  SUPABASE_URL &&
-  SUPABASE_SERVICE_ROLE_KEY &&
-  SUPABASE_URL !== 'https://your-supabase-project.supabase.co' &&
-  SUPABASE_SERVICE_ROLE_KEY !== 'your_supabase_service_role_key_here'
-) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-} else {
-  console.warn('[SupabaseService] SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing/default. Using robust in-memory database store.');
-}
+export const supabase = isMock
+  ? (new Proxy(_supabase, {
+      get(target, prop) {
+        if (prop === "rpc") {
+          return async (rpcName: string) => {
+            if (rpcName === "search_cities") return { data: [{ id: "c1", name: "Tokyo", country: "Japan" }], error: null };
+            if (rpcName === "search_activities") return { data: [{ id: "a1", name: "Food Tour", category: "food" }], error: null };
+            if (rpcName === "get_admin_analytics") return { data: { total_trips: 42, active_users: 10 }, error: null };
+            if (rpcName === "get_trip_budget_summary") return { data: { total_cost: 1200 }, error: null };
+            return { data: null, error: null };
+          };
+        }
+        if (prop === "from") {
+          return () => ({
+            select: () => ({
+              order: () => ({
+                limit: () => Promise.resolve({ data: [] }),
+              }),
+            }),
+          });
+        }
+        return target[prop as keyof typeof target];
+      },
+    }) as any)
+  : _supabase;
 
-// In-Memory Database Fallback Store for seamless offline testing
-const mockDB = {
-  trips: [] as any[],
-  cities: [] as any[],
-  stops: [] as any[],
-  activities: [] as any[],
-  trip_activities: [] as any[]
-};
-
-export interface InsertItineraryResult {
-  trip_id: string;
-  trip: any;
-  stops: any[];
-  cities_created: number;
-  activities_created: number;
-}
-
-/**
- * Inserts an AI generated itinerary directly into Supabase relational tables:
- * 1. Creates trips record
- * 2. Matches/creates cities records
- * 3. Creates ordered stops with calculated dates
- * 4. Creates activities and links them via trip_activities
- */
 export async function insertFullItinerary(
-  plan: GeneratedTripPlan,
+  parsed: ItineraryResponse,
   userId: string,
   startDateStr?: string
-): Promise<InsertItineraryResult> {
-  const tripId = crypto.randomUUID();
-  const validUserId = isValidUUID(userId) ? userId : crypto.randomUUID();
+) {
+  if (isMock) {
+    return { trip_id: "mock-trip-123", trip: {}, stops: parsed.stops || [] };
+  }
 
-  // 1. Calculate trip dates
   const startDate = startDateStr ? new Date(startDateStr) : new Date();
-  if (isNaN(startDate.getTime())) {
-    startDate.setTime(Date.now());
-  }
-
-  let totalDays = 0;
-  for (const stop of plan.stops) {
-    totalDays += stop.duration_days || 1;
-  }
-
+  const totalDays = parsed.trip.total_days || 3;
   const endDate = new Date(startDate);
-  endDate.setDate(endDate.getDate() + Math.max(1, totalDays));
+  endDate.setDate(startDate.getDate() + totalDays);
 
-  const tripRecord = {
-    id: tripId,
-    user_id: validUserId,
-    name: plan.name || 'AI Generated Trip',
-    start_date: startDate.toISOString().split('T')[0],
-    end_date: endDate.toISOString().split('T')[0],
-    description: plan.description || '',
-    cover_photo: plan.cover_photo || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828',
-    is_public: true,
-    share_slug: `${slugify(plan.name || 'trip')}-${crypto.randomBytes(3).toString('hex')}`
-  };
+  const cleanSlug = `${parsed.trip.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "-")
+    .replace(/-+/g, "-")}-${Date.now().toString(36)}`;
 
-  let insertedStopsResult: any[] = [];
-  let citiesCreatedCount = 0;
-  let activitiesCreatedCount = 0;
+  // 1. Insert Trip
+  const { data: tripData, error: tripErr } = await supabase
+    .from("trips")
+    .insert({
+      user_id: userId,
+      name: parsed.trip.name,
+      description: parsed.trip.description,
+      start_date: startDate.toISOString().split("T")[0],
+      end_date: endDate.toISOString().split("T")[0],
+      is_public: false,
+      public_slug: cleanSlug,
+      cover_photo_url:
+        "https://images.unsplash.com/photo-1488646953014-85cb44e25828",
+    })
+    .select()
+    .single();
 
-  if (supabase) {
-    try {
-      // 1. Insert Trip
-      const { error: tripError } = await supabase.from('trips').insert(tripRecord);
-      if (tripError) throw tripError;
+  if (tripErr) throw new Error(`Failed to insert trip: ${tripErr.message}`);
 
-      let currentStopStartDate = new Date(startDate);
+  // 2. Iterate Stops and Insert
+  for (const stop of parsed.stops) {
+    // Find or Create City
+    let { data: city } = await supabase
+      .from("cities")
+      .select("id")
+      .ilike("name", stop.city_name)
+      .maybeSingle();
 
-      // 2. Process Stops & Cities in parallel / order
-      for (let orderIndex = 0; orderIndex < plan.stops.length; orderIndex++) {
-        const stop = plan.stops[orderIndex];
-        const stopId = crypto.randomUUID();
-
-        // Match or create city
-        const cityId = await getOrCreateCitySupabase(stop, () => { citiesCreatedCount++; });
-
-        const stopEndDate = new Date(currentStopStartDate);
-        stopEndDate.setDate(stopEndDate.getDate() + Math.max(1, stop.duration_days));
-
-        const stopRecord = {
-          id: stopId,
-          trip_id: tripId,
-          city_id: cityId,
-          start_date: currentStopStartDate.toISOString().split('T')[0],
-          end_date: stopEndDate.toISOString().split('T')[0],
-          order_index: orderIndex
-        };
-
-        const { error: stopError } = await supabase.from('stops').insert(stopRecord);
-        if (stopError) throw stopError;
-
-        // Process activities for this stop
-        const insertedActivities = await Promise.all(
-          (stop.activities || []).map(async (act) => {
-            const actId = await getOrCreateActivitySupabase(cityId, act, () => { activitiesCreatedCount++; });
-
-            const tripActId = crypto.randomUUID();
-            const tripActRecord = {
-              id: tripActId,
-              stop_id: stopId,
-              activity_id: actId,
-              day_number: act.day_number || 1,
-              time_slot: act.time_slot || 'Morning',
-              cost_override: act.cost ?? null
-            };
-
-            await supabase!.from('trip_activities').insert(tripActRecord);
-
-            return {
-              ...act,
-              id: actId,
-              trip_activity_id: tripActId
-            };
-          })
-        );
-
-        insertedStopsResult.push({
-          ...stopRecord,
-          city_name: stop.city_name,
-          country: stop.country,
-          activities: insertedActivities
-        });
-
-        currentStopStartDate = new Date(stopEndDate);
-      }
-
-      return {
-        trip_id: tripId,
-        trip: tripRecord,
-        stops: insertedStopsResult,
-        cities_created: citiesCreatedCount,
-        activities_created: activitiesCreatedCount
-      };
-    } catch (err) {
-      console.warn('[SupabaseService] Real DB insertion encountered error, falling back to mock DB:', (err as Error).message);
-    }
-  }
-
-  // MOCK DB Insertion Logic (Fast, deterministic)
-  mockDB.trips.push(tripRecord);
-
-  let currentStopStartDate = new Date(startDate);
-  for (let orderIndex = 0; orderIndex < plan.stops.length; orderIndex++) {
-    const stop = plan.stops[orderIndex];
-    const stopId = crypto.randomUUID();
-
-    // Check or create mock city
-    let city = mockDB.cities.find((c) => c.name.toLowerCase() === stop.city_name.toLowerCase());
     if (!city) {
-      city = {
-        id: crypto.randomUUID(),
-        name: stop.city_name,
-        country: stop.country,
-        cost_index: stop.cost_index || 3,
-        popularity: stop.popularity || 80,
-        image_url: stop.city_image_url || 'https://images.unsplash.com/photo-1477959858617-67f30ac72604'
-      };
-      mockDB.cities.push(city);
-      citiesCreatedCount++;
+      const { data: newCity } = await supabase
+        .from("cities")
+        .insert({
+          name: stop.city_name,
+          country: stop.country || "Global",
+          region: "International",
+          cost_index: 1.0,
+          image_url:
+            "https://images.unsplash.com/photo-1488646953014-85cb44e25828",
+        })
+        .select("id")
+        .single();
+      city = newCity;
     }
 
-    const stopEndDate = new Date(currentStopStartDate);
-    stopEndDate.setDate(stopEndDate.getDate() + Math.max(1, stop.duration_days));
+    const stopStart = new Date(startDate);
+    stopStart.setDate(startDate.getDate() + ((stop.day_start || 1) - 1));
+    const stopEnd = new Date(startDate);
+    stopEnd.setDate(startDate.getDate() + ((stop.day_end || stop.day_start || 1) - 1));
 
-    const stopRecord = {
-      id: stopId,
-      trip_id: tripId,
-      city_id: city.id,
-      start_date: currentStopStartDate.toISOString().split('T')[0],
-      end_date: stopEndDate.toISOString().split('T')[0],
-      order_index: orderIndex
-    };
-    mockDB.stops.push(stopRecord);
+    const { data: stopData, error: stopErr } = await supabase
+      .from("stops")
+      .insert({
+        trip_id: tripData.id,
+        city_id: city?.id,
+        order_index: stop.order_index ?? 0,
+        start_date: stopStart.toISOString().split("T")[0],
+        end_date: stopEnd.toISOString().split("T")[0],
+      })
+      .select("id")
+      .single();
 
-    const insertedActivities: any[] = [];
-    for (const act of stop.activities || []) {
-      let activity = mockDB.activities.find((a) => a.city_id === city.id && a.name.toLowerCase() === act.name.toLowerCase());
-      if (!activity) {
-        activity = {
-          id: crypto.randomUUID(),
-          city_id: city.id,
+    if (stopErr || !stopData) continue;
+
+    // 3. Insert Activities & Link to Trip Stop
+    for (let i = 0; i < (stop.activities || []).length; i++) {
+      const act = stop.activities[i];
+
+      // Catalog Activity Insert
+      const { data: actData } = await supabase
+        .from("activities")
+        .insert({
+          city_id: city?.id,
           name: act.name,
-          category: act.category || 'Sightseeing',
+          category: (act.category || "activity").toLowerCase(),
           cost: act.cost || 0,
-          duration_min: act.duration_min || 120,
-          description: act.description || '',
-          image_url: act.image_url || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828'
-        };
-        mockDB.activities.push(activity);
-        activitiesCreatedCount++;
-      }
+          duration_minutes: act.duration_min || 60,
+          description: act.description || "",
+        })
+        .select("id")
+        .single();
 
-      const tripActRecord = {
-        id: crypto.randomUUID(),
-        stop_id: stopId,
-        activity_id: activity.id,
-        day_number: act.day_number || 1,
-        time_slot: act.time_slot || 'Morning',
-        cost_override: act.cost
-      };
-      mockDB.trip_activities.push(tripActRecord);
-
-      insertedActivities.push({
-        ...act,
-        id: activity.id,
-        trip_activity_id: tripActRecord.id
+      // Trip Activity Join Insert
+      await supabase.from("trip_activities").insert({
+        stop_id: stopData.id,
+        activity_id: actData?.id || null,
+        custom_name: act.name,
+        category: (act.category || "activity").toLowerCase(),
+        cost: act.cost || 0,
+        order_index: i,
       });
     }
-
-    insertedStopsResult.push({
-      ...stopRecord,
-      city_name: stop.city_name,
-      country: stop.country,
-      activities: insertedActivities
-    });
-
-    currentStopStartDate = new Date(stopEndDate);
   }
 
-  return {
-    trip_id: tripId,
-    trip: tripRecord,
-    stops: insertedStopsResult,
-    cities_created: citiesCreatedCount,
-    activities_created: activitiesCreatedCount
-  };
+  return { trip_id: tripData.id, trip: tripData, stops: parsed.stops };
 }
 
-/**
- * Fetch recent trips from Supabase for admin insights
- */
-export async function fetchRecentTripsSummary(limit: number = 10): Promise<any[]> {
-  if (supabase) {
-    try {
-      const { data, error } = await supabase
-        .from('trips')
-        .select('name, description, start_date, stops(city_id, cities(name, country))')
-        .order('start_date', { ascending: false })
-        .limit(limit);
+export async function fetchRecentTripsSummary(): Promise<string[]> {
+  if (isMock) return ["Tokyo: 3 days", "Paris: 5 days"];
+  const { data } = await supabase
+    .from("trips")
+    .select("name, description")
+    .order("created_at", { ascending: false })
+    .limit(8);
 
-      if (!error && data && data.length > 0) {
-        return data;
-      }
-    } catch (e) {
-      console.warn('[SupabaseService] Query recent trips failed, returning mock summary:', (e as Error).message);
-    }
-  }
-
-  // Fallback mock trips summary
-  return mockDB.trips.slice(-limit).map((t) => ({
-    name: t.name,
-    description: t.description,
-    start_date: t.start_date
-  }));
-}
-
-// Helpers
-async function getOrCreateCitySupabase(stop: any, onCreated: () => void): Promise<string> {
-  const { data: existing } = await supabase!
-    .from('cities')
-    .select('id')
-    .ilike('name', stop.city_name)
-    .maybeSingle();
-
-  if (existing) return existing.id;
-
-  const newCityId = crypto.randomUUID();
-  const { error } = await supabase!.from('cities').insert({
-    id: newCityId,
-    name: stop.city_name,
-    country: stop.country || 'Unknown',
-    cost_index: stop.cost_index || 3,
-    popularity: stop.popularity || 80,
-    image_url: stop.city_image_url || 'https://images.unsplash.com/photo-1477959858617-67f30ac72604'
-  });
-
-  if (!error) onCreated();
-  return newCityId;
-}
-
-async function getOrCreateActivitySupabase(cityId: string, act: any, onCreated: () => void): Promise<string> {
-  const { data: existing } = await supabase!
-    .from('activities')
-    .select('id')
-    .eq('city_id', cityId)
-    .ilike('name', act.name)
-    .maybeSingle();
-
-  if (existing) return existing.id;
-
-  const newActId = crypto.randomUUID();
-  const { error } = await supabase!.from('activities').insert({
-    id: newActId,
-    city_id: cityId,
-    name: act.name,
-    category: act.category || 'Sightseeing',
-    cost: act.cost || 0,
-    duration_min: act.duration_min || 120,
-    description: act.description || '',
-    image_url: act.image_url || 'https://images.unsplash.com/photo-1488646953014-85cb44e25828'
-  });
-
-  if (!error) onCreated();
-  return newActId;
-}
-
-function isValidUUID(str: string): boolean {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return regex.test(str);
-}
-
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
+  return (data || []).map((t) => `${t.name}: ${t.description || ""}`);
 }
