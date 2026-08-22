@@ -234,7 +234,7 @@ export async function addStop(req: Request, res: Response) {
           order_index: rIdx,
           day_number: 1,
           scheduled_time: rIdx === 0 ? "09:30" : rIdx === 1 ? "14:00" : "18:00",
-          description: rec.reason || rec.description || ""
+          description: rec.reason || ""
         }));
       }
     } catch (e) {

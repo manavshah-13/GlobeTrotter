@@ -101,6 +101,7 @@ export interface ActivityRecommendation {
   cost: number;
   duration_min: number;
   reason: string;
+  description?: string;
 }
 
 export interface ActivityRecommendationResponse {
