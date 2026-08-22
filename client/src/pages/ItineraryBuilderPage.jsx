@@ -195,7 +195,7 @@ export default function ItineraryBuilderPage() {
                 {trip?.name || 'Itinerary Builder'}
               </h1>
               <p className="font-data-mono text-xs text-slate mt-1">
-                {trip ? `${trip.start_date} → ${trip.end_date} • ${stops.length} Stops • Est. Activities Total: $${totalCost}` : 'Organize your route, cities, and scheduled activities.'}
+                {trip ? `${trip.start_date} → ${trip.end_date} • ${stops.length} Stops • Est. Activities Total: ₹${totalCost}` : 'Organize your route, cities, and scheduled activities.'}
               </p>
             </div>
 
@@ -351,7 +351,7 @@ export default function ItineraryBuilderPage() {
                       <div className="font-data-mono-sm text-xs font-bold text-slate mb-2 flex items-center justify-between">
                         <span>ACTIVITIES ({activities.length})</span>
                         <span className="text-ink-navy font-bold">
-                          Stop Total: ${activities.reduce((s, a) => s + (Number(a.cost) || 0), 0)}
+                          Stop Total: ₹{activities.reduce((s, a) => s + (Number(a.cost) || 0), 0)}
                         </span>
                       </div>
 
@@ -385,7 +385,7 @@ export default function ItineraryBuilderPage() {
 
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <span className="font-data-mono font-bold text-xs text-ink-navy">
-                                  ${act.cost ?? 0}
+                                  ₹{act.cost ?? 0}
                                 </span>
                                 <button
                                   onClick={() => handleDeleteActivity(act.id)}
@@ -537,7 +537,7 @@ export default function ItineraryBuilderPage() {
                     </div>
 
                     <div>
-                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Cost ($ USD)</label>
+                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Cost (₹ INR)</label>
                       <input
                         type="number"
                         value={newActCost}

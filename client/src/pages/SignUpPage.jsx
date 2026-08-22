@@ -8,14 +8,14 @@ export default function SignUpPage() {
   const { signup } = useAuth();
 
   const [formData, setFormData] = useState({
-    firstName: 'Jane',
-    lastName: 'Traveler',
-    email: 'jane.new@globetrotter.io',
-    password: 'password123',
-    phone: '+1 (555) 234-5678',
-    city: 'San Francisco',
-    country: 'United States',
-    bio: 'Frequent traveler interested in outdoor hiking, culinary tours, and culture exploration.'
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
+    city: '',
+    country: '',
+    bio: ''
   });
 
   const [error, setError] = useState('');

@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const ALL_SCREENS = [
-  { name: "Landing Page", path: "/landing", icon: "flight_takeoff" },
   { name: "Dashboard", path: "/dashboard", icon: "dashboard" },
   { name: "Plan a New Trip", path: "/plan", icon: "add_location_alt" },
   { name: "Itinerary Builder", path: "/builder", icon: "route" },

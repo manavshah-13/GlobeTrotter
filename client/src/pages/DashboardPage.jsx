@@ -130,7 +130,7 @@ export default function DashboardPage() {
                       {totalActivities} Activities
                     </span>
                     <span className="px-3 py-1 bg-surface-container rounded-full text-xs font-data-mono text-ink-navy border border-slate">
-                      Activities Est: ${totalCost}
+                      Activities Est: ₹{totalCost}
                     </span>
                   </div>
                 </div>

@@ -21,18 +21,18 @@ export default function PlanNewTripPage() {
   const [error, setError] = useState('');
 
   // AI Form State
-  const [aiPrompt, setAiPrompt] = useState('7-day cultural and culinary expedition in Tokyo, Kanazawa, and Kyoto');
-  const [aiStartDate, setAiStartDate] = useState('2025-06-15');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiStartDate, setAiStartDate] = useState('');
   const [aiStyle, setAiStyle] = useState('balanced');
 
   // Manual Form State
-  const [manualTitle, setManualTitle] = useState('Swiss Alps Hiking Retreat');
-  const [manualStartDate, setManualStartDate] = useState('2025-07-10');
-  const [manualEndDate, setManualEndDate] = useState('2025-07-22');
-  const [manualDestinations, setManualDestinations] = useState('Zurich, Lucerne, Interlaken, Zermatt');
-  const [manualBudget, setManualBudget] = useState('4200');
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualStartDate, setManualStartDate] = useState('');
+  const [manualEndDate, setManualEndDate] = useState('');
+  const [manualDestinations, setManualDestinations] = useState('');
+  const [manualBudget, setManualBudget] = useState('50000');
   const [manualStyle, setManualStyle] = useState('adventure');
-  const [manualDescription, setManualDescription] = useState('Multi-day mountain trail expedition through high alpine passes and scenic valleys.');
+  const [manualDescription, setManualDescription] = useState('');
 
   const handleAiSubmit = async (e) => {
     e.preventDefault();
@@ -319,7 +319,7 @@ export default function PlanNewTripPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block font-headline-sm font-semibold text-ink-navy mb-2">Estimated Budget ($ USD)</label>
+                  <label className="block font-headline-sm font-semibold text-ink-navy mb-2">Estimated Budget (₹ INR)</label>
                   <input
                     type="number"
                     value={manualBudget}

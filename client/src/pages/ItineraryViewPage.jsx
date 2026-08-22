@@ -195,7 +195,7 @@ export default function ItineraryViewPage() {
                                   </div>
 
                                   <div className="font-data-mono font-bold text-xs text-ink-navy pl-2 flex-shrink-0">
-                                    ${act.cost ?? 0}
+                                    ₹{act.cost ?? 0}
                                   </div>
                                 </div>
                               ))}
@@ -214,19 +214,19 @@ export default function ItineraryViewPage() {
                     <div className="space-y-2 text-sm font-data-mono">
                       <div className="flex justify-between text-slate">
                         <span>Flights / Transit:</span>
-                        <span className="text-ink-navy font-bold">${estimatedFlightCost}</span>
+                        <span className="text-ink-navy font-bold">₹{estimatedFlightCost}</span>
                       </div>
                       <div className="flex justify-between text-slate">
                         <span>Lodging ({stops.length} Cities):</span>
-                        <span className="text-ink-navy font-bold">${estimatedStayCost}</span>
+                        <span className="text-ink-navy font-bold">₹{estimatedStayCost}</span>
                       </div>
                       <div className="flex justify-between text-slate">
                         <span>Activities ({stops.reduce((s, st) => s + (st.trip_activities?.length || 0), 0)} Total):</span>
-                        <span className="text-ink-navy font-bold">${totalActivitiesCost}</span>
+                        <span className="text-ink-navy font-bold">₹{totalActivitiesCost}</span>
                       </div>
                       <div className="pt-2 border-t border-slate flex justify-between font-bold text-ink-navy text-base">
                         <span>Estimated Total:</span>
-                        <span className="text-horizon-amber">${grandTotal}</span>
+                        <span className="text-horizon-amber">₹{grandTotal}</span>
                       </div>
                     </div>
 

@@ -195,7 +195,7 @@ export default function ActivitySearchPage() {
                       )}
                     </div>
                     <div className="flex justify-between items-center text-xs font-data-mono pt-3 border-t border-slate">
-                      <span className="font-bold text-ink-navy text-sm">${act.price}</span>
+                      <span className="font-bold text-ink-navy text-sm">₹{act.price}</span>
                       <button
                         onClick={() => handleToggleActivity(act)}
                         className={`px-3 py-1.5 rounded font-bold transition-all flex items-center gap-1 ${

@@ -8,7 +8,7 @@ export default function ProfileSettingsPage() {
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState(user?.name || 'Jane Traveler');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('INR');
   const [saved, setSaved] = useState(false);
 
   // Saved destinations bookmarks
@@ -96,6 +96,7 @@ export default function ProfileSettingsPage() {
                   onChange={(e) => setCurrency(e.target.value)}
                   className="w-full bg-paper border border-slate rounded px-4 py-2.5 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
                 >
+                  <option value="INR">INR (₹ - Indian Rupee)</option>
                   <option value="USD">USD ($ - United States Dollar)</option>
                   <option value="EUR">EUR (€ - Euro)</option>
                   <option value="JPY">JPY (¥ - Japanese Yen)</option>

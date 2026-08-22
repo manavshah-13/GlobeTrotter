@@ -42,14 +42,13 @@ export default function BudgetBreakdownPage() {
   const totalAllocation = Math.max(grandTotal + 400, 3500);
   const remaining = totalAllocation - grandTotal;
 
-  // Generate synthetic / calculated per-day cost array for chart
+  // Generate per-day cost array for chart
   const daysCount = Math.max(stops.length * 3, 6);
   const dailyBudgetAvg = grandTotal / daysCount;
   const dailyCosts = Array.from({ length: daysCount }, (_, idx) => {
     const day = idx + 1;
     const stopForDay = stops[Math.min(Math.floor(idx / 3), stops.length - 1)];
     const stopName = stopForDay?.city_name || stopForDay?.cities?.name || `Day ${day}`;
-    // vary costs realistically around average
     const variance = (idx % 3 === 0 ? 1.3 : idx % 2 === 0 ? 0.8 : 1.05);
     const cost = Math.round(dailyBudgetAvg * variance);
     return { day, stopName, cost };
@@ -69,19 +68,19 @@ export default function BudgetBreakdownPage() {
             <div>
               <h1 className="font-headline-lg text-2xl md:text-3xl font-bold text-primary">Budget & Cost Breakdown</h1>
               <p className="font-body-md text-slate mt-1">
-                {trip?.name || 'Trip Expedition'} • Total Allocation: ${totalAllocation.toLocaleString()}
+                {trip?.name || 'Trip Expedition'} • Total Allocation: ₹{totalAllocation.toLocaleString()}
               </p>
             </div>
 
             <div className="bg-surface-container border border-slate p-4 rounded-lg flex items-center gap-6">
               <div>
                 <div className="font-data-mono-sm text-xs text-slate">TOTAL EXPENSES</div>
-                <div className="font-headline-lg text-2xl font-bold text-horizon-amber">${grandTotal.toLocaleString()}</div>
+                <div className="font-headline-lg text-2xl font-bold text-horizon-amber">₹{grandTotal.toLocaleString()}</div>
               </div>
               <div className="h-8 w-px bg-slate"></div>
               <div>
                 <div className="font-data-mono-sm text-xs text-slate">REMAINING</div>
-                <div className="font-headline-lg text-2xl font-bold text-route-teal">${remaining.toLocaleString()}</div>
+                <div className="font-headline-lg text-2xl font-bold text-route-teal">₹{remaining.toLocaleString()}</div>
               </div>
             </div>
           </div>
@@ -93,7 +92,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">flight</span>
                 <span>TRANSIT & FLIGHTS</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">${transitTotal}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{transitTotal}</div>
             </div>
 
             <div className="bg-paper border border-slate p-5 rounded-lg">
@@ -101,7 +100,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">hotel</span>
                 <span>LODGING ({stops.length} CITIES)</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">${lodgingTotal}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{lodgingTotal}</div>
             </div>
 
             <div className="bg-paper border border-slate p-5 rounded-lg">
@@ -109,7 +108,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">local_activity</span>
                 <span>ACTIVITIES ({activities.length})</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">${activitiesTotal}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{activitiesTotal}</div>
             </div>
 
             <div className="bg-paper border border-slate p-5 rounded-lg">
@@ -117,7 +116,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">restaurant</span>
                 <span>MEALS & DINING</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">${foodTotal}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{foodTotal}</div>
             </div>
           </div>
 
@@ -128,7 +127,7 @@ export default function BudgetBreakdownPage() {
                 <h2 className="font-headline-md text-xl font-bold text-ink-navy">Per-Day Cost Distribution</h2>
                 <p className="font-data-mono text-xs text-slate">Estimated daily velocity across travel days & waypoint transitions</p>
               </div>
-              <span className="font-data-mono text-xs text-route-teal font-bold">Avg: ${Math.round(dailyBudgetAvg)} / Day</span>
+              <span className="font-data-mono text-xs text-route-teal font-bold">Avg: ₹{Math.round(dailyBudgetAvg)} / Day</span>
             </div>
 
             <div className="pt-4 pb-2 px-2 overflow-x-auto">
@@ -140,14 +139,14 @@ export default function BudgetBreakdownPage() {
                   return (
                     <div key={d.day} className="flex-1 flex flex-col items-center gap-1 group">
                       <span className="font-data-mono text-[10px] font-bold text-ink-navy opacity-0 group-hover:opacity-100 transition-opacity">
-                        ${d.cost}
+                        ₹{d.cost}
                       </span>
                       <div
                         style={{ height: `${heightPercent}%` }}
                         className={`w-full max-w-[40px] rounded-t transition-all group-hover:brightness-110 ${
                           isHigh ? 'bg-alert-coral' : 'bg-horizon-amber'
                         }`}
-                        title={`Day ${d.day} (${d.stopName}): $${d.cost}`}
+                        title={`Day ${d.day} (${d.stopName}): ₹${d.cost}`}
                       ></div>
                       <span className="font-data-mono text-[10px] text-slate mt-1 font-bold">D{d.day}</span>
                     </div>
@@ -187,7 +186,7 @@ export default function BudgetBreakdownPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-ink-navy text-base">${transitTotal}</div>
+                  <div className="font-bold text-ink-navy text-base">₹{transitTotal}</div>
                   <span className="text-xs text-route-teal bg-route-teal/10 px-2 py-0.5 rounded border border-route-teal/30">Estimated</span>
                 </div>
               </div>
@@ -201,7 +200,7 @@ export default function BudgetBreakdownPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-ink-navy text-base">${lodgingTotal}</div>
+                  <div className="font-bold text-ink-navy text-base">₹{lodgingTotal}</div>
                   <span className="text-xs text-route-teal bg-route-teal/10 px-2 py-0.5 rounded border border-route-teal/30">Estimated</span>
                 </div>
               </div>
@@ -218,7 +217,7 @@ export default function BudgetBreakdownPage() {
                   </div>
 
                   <div className="text-right">
-                    <div className="font-bold text-ink-navy text-base">${act.cost ?? 0}</div>
+                    <div className="font-bold text-ink-navy text-base">₹{act.cost ?? 0}</div>
                     <span className="text-xs text-horizon-amber bg-horizon-amber/10 px-2 py-0.5 rounded border border-horizon-amber/30">Planned</span>
                   </div>
                 </div>
