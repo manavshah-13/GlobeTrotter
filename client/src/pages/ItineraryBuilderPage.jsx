@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
-import { getTripDetails, getTrips, addStop, removeStop, assignActivity, removeActivity, reorderStopsApi, updateTrip } from '../services/api';
+import { getTripDetails, getTrips, addStop, removeStop, assignActivity, removeActivity, updateTrip, reorderStopsApi } from '../services/api';
 
 export default function ItineraryBuilderPage() {
   const [searchParams] = useSearchParams();
@@ -13,42 +13,38 @@ export default function ItineraryBuilderPage() {
 
   // Modals
   const [showStopModal, setShowStopModal] = useState(false);
+  const [newCityName, setNewCityName] = useState('');
+  const [newCountry, setNewCountry] = useState('');
+  const [addingStop, setAddingStop] = useState(false);
+
   const [showActivityModal, setShowActivityModal] = useState(null); // { stopId }
-  const [savingItem, setSavingItem] = useState(false);
-
-  // Stop Modal Form State
-  const [newStopCity, setNewStopCity] = useState('');
-  const [newStopCountry, setNewStopCountry] = useState('');
-  const [newStopStart, setNewStopStart] = useState('');
-  const [newStopEnd, setNewStopEnd] = useState('');
-
-  // Activity Modal Form State
-  const [newActName, setNewActName] = useState('');
-  const [newActCategory, setNewActCategory] = useState('Sightseeing');
-  const [newActCost, setNewActCost] = useState('35');
-  const [newActTime, setNewActTime] = useState('10:00');
+  const [actName, setActName] = useState('');
+  const [actCategory, setActCategory] = useState('Sightseeing');
+  const [actCost, setActCost] = useState('');
+  const [actTime, setActTime] = useState('10:00');
+  const [actDesc, setActDesc] = useState('');
+  const [addingAct, setAddingAct] = useState(false);
 
   const loadTrip = async () => {
     try {
       setLoading(true);
-      setError('');
-      let currentTripId = tripIdParam;
+      let id = tripIdParam;
 
-      if (!currentTripId) {
+      if (!id) {
         const trips = await getTrips();
         if (trips && trips.length > 0) {
-          currentTripId = trips[0].id;
+          id = trips[0].id;
         }
       }
 
-      if (currentTripId) {
-        const details = await getTripDetails(currentTripId);
-        setTrip(details);
+      if (id) {
+        const data = await getTripDetails(id);
+        setTrip(data);
       } else {
-        setError('No active trip found. Please plan a trip first.');
+        setError('No trip found. Please create a trip first.');
       }
     } catch (err) {
-      setError(err.message || 'Failed to load itinerary details.');
+      setError(err.message || 'Failed to load trip.');
     } finally {
       setLoading(false);
     }
@@ -60,63 +56,61 @@ export default function ItineraryBuilderPage() {
 
   const handleTogglePrivacy = async () => {
     if (!trip) return;
-    const nextPublic = !trip.is_public;
-    setTrip(prev => ({ ...prev, is_public: nextPublic }));
+    const newStatus = !trip.is_public;
+    setTrip({ ...trip, is_public: newStatus });
     try {
-      await updateTrip(trip.id, { is_public: nextPublic });
+      await updateTrip(trip.id, { is_public: newStatus });
     } catch (_) {}
   };
 
-  const handleAddStopSubmit = async (e) => {
+  const handleAddStop = async (e) => {
     e.preventDefault();
-    if (!newStopCity.trim() || !trip) return;
+    if (!newCityName.trim() || !trip) return;
 
-    setSavingItem(true);
+    setAddingStop(true);
     try {
       await addStop({
         trip_id: trip.id,
-        city_name: newStopCity.trim(),
-        country: newStopCountry.trim() || 'Global',
-        start_date: newStopStart || trip.start_date,
-        end_date: newStopEnd || trip.end_date,
-        order_index: (trip.stops || []).length
+        city_name: newCityName.trim(),
+        country: newCountry.trim() || 'International',
+        order_index: trip.stops?.length || 0
       });
 
+      setNewCityName('');
+      setNewCountry('');
       setShowStopModal(false);
-      setNewStopCity('');
-      setNewStopCountry('');
-      setNewStopStart('');
-      setNewStopEnd('');
       await loadTrip();
     } catch (err) {
       alert(`Error adding stop: ${err.message}`);
     } finally {
-      setSavingItem(false);
+      setAddingStop(false);
     }
   };
 
-  const handleAddActivitySubmit = async (e) => {
+  const handleAddActivity = async (e) => {
     e.preventDefault();
-    if (!newActName.trim() || !showActivityModal) return;
+    if (!actName.trim() || !showActivityModal?.stopId) return;
 
-    setSavingItem(true);
+    setAddingAct(true);
     try {
       await assignActivity({
         stop_id: showActivityModal.stopId,
-        custom_name: newActName.trim(),
-        category: newActCategory,
-        cost: Number(newActCost) || 0,
-        scheduled_time: newActTime || '10:00'
+        custom_name: actName.trim(),
+        category: actCategory.toLowerCase(),
+        cost: Number(actCost) || 0,
+        scheduled_time: actTime,
+        description: actDesc.trim()
       });
 
+      setActName('');
+      setActCost('');
+      setActDesc('');
       setShowActivityModal(null);
-      setNewActName('');
-      setNewActCost('35');
       await loadTrip();
     } catch (err) {
       alert(`Error adding activity: ${err.message}`);
     } finally {
-      setSavingItem(false);
+      setAddingAct(false);
     }
   };
 
@@ -158,7 +152,7 @@ export default function ItineraryBuilderPage() {
   };
 
   const stops = trip?.stops || [];
-  const totalCost = stops.reduce((acc, stop) => {
+  const activitiesTotal = stops.reduce((acc, stop) => {
     const actTotal = (stop.trip_activities || []).reduce((sum, a) => sum + (Number(a.cost) || 0), 0);
     return acc + actTotal;
   }, 0);
@@ -195,7 +189,7 @@ export default function ItineraryBuilderPage() {
                 {trip?.name || 'Itinerary Builder'}
               </h1>
               <p className="font-data-mono text-xs text-slate mt-1">
-                {trip ? `${trip.start_date} → ${trip.end_date} • ${stops.length} Stops • Est. Activities Total: ₹${totalCost}` : 'Organize your route, cities, and scheduled activities.'}
+                {trip ? `${trip.start_date} → ${trip.end_date} • ${stops.length} Stops • Est. Activities Total: $${activitiesTotal.toLocaleString()}` : 'Organize your route, cities, and scheduled activities.'}
               </p>
             </div>
 
@@ -291,6 +285,16 @@ export default function ItineraryBuilderPage() {
                 const stopName = stop.city_name || stop.cities?.name || `Stop ${idx + 1}`;
                 const stopCountry = stop.country || stop.cities?.country || '';
 
+                // Group activities by Day number
+                const groupedByDay = activities.reduce((acc, act, actIdx) => {
+                  const dayNum = act.day_number || (Math.floor(actIdx / 2) + 1);
+                  if (!acc[dayNum]) acc[dayNum] = [];
+                  acc[dayNum].push(act);
+                  return acc;
+                }, {});
+
+                const dayKeys = Object.keys(groupedByDay).sort((a, b) => Number(a) - Number(b));
+
                 return (
                   <div key={stop.id || idx} className="bg-paper border border-slate rounded-lg p-6 relative space-y-4 shadow-sm hover:border-slate/80 transition-all">
                     {/* Header with Reorder Controls */}
@@ -311,7 +315,6 @@ export default function ItineraryBuilderPage() {
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        {/* Move Up / Move Down */}
                         <button
                           disabled={idx === 0}
                           onClick={() => handleMoveStop(idx, -1)}
@@ -346,12 +349,12 @@ export default function ItineraryBuilderPage() {
                       </div>
                     </div>
 
-                    {/* Activities List */}
+                    {/* Activities List grouped by Day */}
                     <div>
-                      <div className="font-data-mono-sm text-xs font-bold text-slate mb-2 flex items-center justify-between">
+                      <div className="font-data-mono-sm text-xs font-bold text-slate mb-3 flex items-center justify-between">
                         <span>ACTIVITIES ({activities.length})</span>
                         <span className="text-ink-navy font-bold">
-                          Stop Total: ₹{activities.reduce((s, a) => s + (Number(a.cost) || 0), 0)}
+                          Stop Total: ${activities.reduce((s, a) => s + (Number(a.cost) || 0), 0)}
                         </span>
                       </div>
 
@@ -359,7 +362,7 @@ export default function ItineraryBuilderPage() {
                         <div className="p-4 bg-surface-container border border-dashed border-slate/60 rounded text-center text-xs font-data-mono text-slate">
                           No activities added for {stopName} yet. Click "Add Activity" above.
                         </div>
-                      ) : (
+                      ) : dayKeys.length === 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {activities.map((act, aIdx) => (
                             <div
@@ -385,7 +388,7 @@ export default function ItineraryBuilderPage() {
 
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <span className="font-data-mono font-bold text-xs text-ink-navy">
-                                  ₹{act.cost ?? 0}
+                                  ${act.cost ?? 0}
                                 </span>
                                 <button
                                   onClick={() => handleDeleteActivity(act.id)}
@@ -394,6 +397,58 @@ export default function ItineraryBuilderPage() {
                                 >
                                   <span className="material-symbols-outlined text-sm">close</span>
                                 </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {dayKeys.map((dayNum) => (
+                            <div key={dayNum} className="space-y-2">
+                              <div className="flex items-center gap-2 border-b border-slate/40 pb-1">
+                                <span className="w-2.5 h-2.5 rounded-full bg-horizon-amber"></span>
+                                <span className="font-headline-sm font-bold text-xs text-ink-navy uppercase font-data-mono">
+                                  Day {dayNum} Schedule
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2 border-l-2 border-horizon-amber/40">
+                                {groupedByDay[dayNum].map((act, aIdx) => (
+                                  <div
+                                    key={act.id || aIdx}
+                                    className="p-3 bg-surface-container border border-slate/60 rounded-lg flex justify-between items-start group"
+                                  >
+                                    <div className="min-w-0 pr-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-2 py-0.5 bg-paper rounded border border-slate text-[10px] font-data-mono text-route-teal uppercase">
+                                          {act.category || 'Sightseeing'}
+                                        </span>
+                                        {act.scheduled_time && (
+                                          <span className="text-[11px] font-data-mono text-slate">{act.scheduled_time}</span>
+                                        )}
+                                      </div>
+                                      <div className="font-bold text-sm text-ink-navy mt-1 truncate">
+                                        {act.custom_name}
+                                      </div>
+                                      {act.description && (
+                                        <p className="text-xs text-slate mt-0.5 line-clamp-1">{act.description}</p>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-data-mono font-bold text-xs text-ink-navy">
+                                        ${act.cost ?? 0}
+                                      </span>
+                                      <button
+                                        onClick={() => handleDeleteActivity(act.id)}
+                                        className="text-slate hover:text-alert-coral opacity-60 hover:opacity-100 transition-opacity"
+                                        title="Remove activity"
+                                      >
+                                        <span className="material-symbols-outlined text-sm">close</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           ))}
@@ -418,75 +473,57 @@ export default function ItineraryBuilderPage() {
 
           {/* ADD STOP MODAL */}
           {showStopModal && (
-            <div className="fixed inset-0 bg-ink-navy/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-paper border border-slate rounded-lg p-6 max-w-md w-full shadow-2xl space-y-4">
-                <div className="flex justify-between items-center border-b border-slate pb-2">
-                  <h3 className="font-headline-sm text-lg font-bold text-ink-navy">Add Waypoint Stop</h3>
+            <div className="fixed inset-0 bg-ink-navy/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-paper border border-slate rounded-lg max-w-md w-full p-6 space-y-4 shadow-2xl">
+                <div className="flex justify-between items-center border-b border-slate pb-3">
+                  <h3 className="font-headline-sm text-lg font-bold text-ink-navy flex items-center gap-2">
+                    <span className="material-symbols-outlined text-route-teal">add_location</span>
+                    <span>Add New Stop / Waypoint</span>
+                  </h3>
                   <button onClick={() => setShowStopModal(false)} className="text-slate hover:text-ink-navy">
                     <span className="material-symbols-outlined">close</span>
                   </button>
                 </div>
 
-                <form onSubmit={handleAddStopSubmit} className="space-y-4">
+                <form onSubmit={handleAddStop} className="space-y-4">
                   <div>
-                    <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">City / Location Name *</label>
+                    <label className="block text-xs font-data-mono font-bold text-slate mb-1">CITY / DESTINATION NAME *</label>
                     <input
                       type="text"
                       required
-                      autoFocus
-                      value={newStopCity}
-                      onChange={(e) => setNewStopCity(e.target.value)}
-                      placeholder="e.g. Osaka, Interlaken, Kyoto"
-                      className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                      placeholder="e.g. Ujjain, Kyoto, Paris"
+                      value={newCityName}
+                      onChange={(e) => setNewCityName(e.target.value)}
+                      className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Country</label>
+                    <label className="block text-xs font-data-mono font-bold text-slate mb-1">COUNTRY (OPTIONAL)</label>
                     <input
                       type="text"
-                      value={newStopCountry}
-                      onChange={(e) => setNewStopCountry(e.target.value)}
-                      placeholder="e.g. Japan, Switzerland, Italy"
-                      className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                      placeholder="e.g. India, Japan, France"
+                      value={newCountry}
+                      onChange={(e) => setNewCountry(e.target.value)}
+                      className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Arrival Date</label>
-                      <input
-                        type="date"
-                        value={newStopStart}
-                        onChange={(e) => setNewStopStart(e.target.value)}
-                        className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Departure Date</label>
-                      <input
-                        type="date"
-                        value={newStopEnd}
-                        onChange={(e) => setNewStopEnd(e.target.value)}
-                        className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
+                  <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => setShowStopModal(false)}
-                      className="px-4 py-2 border border-slate rounded text-xs text-slate hover:bg-surface-container"
+                      className="px-4 py-2 border border-slate text-slate rounded text-xs font-bold hover:bg-surface-container"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      disabled={savingItem}
-                      className="px-5 py-2 bg-horizon-amber text-ink-navy font-bold rounded text-xs hover:opacity-90 disabled:opacity-50"
+                      disabled={addingStop}
+                      className="px-5 py-2 bg-horizon-amber text-ink-navy font-bold rounded text-xs hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      {savingItem ? 'Adding Stop...' : 'Add Stop'}
+                      {addingStop && <div className="w-3 h-3 border-2 border-ink-navy border-t-transparent rounded-full animate-spin"></div>}
+                      <span>Add Stop + Auto AI Activities</span>
                     </button>
                   </div>
                 </form>
@@ -496,82 +533,98 @@ export default function ItineraryBuilderPage() {
 
           {/* ADD ACTIVITY MODAL */}
           {showActivityModal && (
-            <div className="fixed inset-0 bg-ink-navy/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-paper border border-slate rounded-lg p-6 max-w-md w-full shadow-2xl space-y-4">
-                <div className="flex justify-between items-center border-b border-slate pb-2">
-                  <h3 className="font-headline-sm text-lg font-bold text-ink-navy">Add Activity to Stop</h3>
+            <div className="fixed inset-0 bg-ink-navy/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-paper border border-slate rounded-lg max-w-md w-full p-6 space-y-4 shadow-2xl">
+                <div className="flex justify-between items-center border-b border-slate pb-3">
+                  <h3 className="font-headline-sm text-lg font-bold text-ink-navy flex items-center gap-2">
+                    <span className="material-symbols-outlined text-horizon-amber">local_activity</span>
+                    <span>Add Custom Activity</span>
+                  </h3>
                   <button onClick={() => setShowActivityModal(null)} className="text-slate hover:text-ink-navy">
                     <span className="material-symbols-outlined">close</span>
                   </button>
                 </div>
 
-                <form onSubmit={handleAddActivitySubmit} className="space-y-4">
+                <form onSubmit={handleAddActivity} className="space-y-4">
                   <div>
-                    <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Activity Name *</label>
+                    <label className="block text-xs font-data-mono font-bold text-slate mb-1">ACTIVITY TITLE *</label>
                     <input
                       type="text"
                       required
-                      autoFocus
-                      value={newActName}
-                      onChange={(e) => setNewActName(e.target.value)}
-                      placeholder="e.g. Tsukiji Outer Market Tasting Tour"
-                      className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                      placeholder="e.g. Mahakaleshwar Temple Visit"
+                      value={actName}
+                      onChange={(e) => setActName(e.target.value)}
+                      className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Category</label>
+                      <label className="block text-xs font-data-mono font-bold text-slate mb-1">CATEGORY</label>
                       <select
-                        value={newActCategory}
-                        onChange={(e) => setNewActCategory(e.target.value)}
-                        className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
+                        value={actCategory}
+                        onChange={(e) => setActCategory(e.target.value)}
+                        className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy"
                       >
-                        <option value="Culinary">Culinary / Food</option>
                         <option value="Sightseeing">Sightseeing</option>
-                        <option value="Culture">Culture & History</option>
-                        <option value="Adventure">Outdoor & Adventure</option>
+                        <option value="Food">Food</option>
+                        <option value="Culture">Culture</option>
+                        <option value="Adventure">Adventure</option>
+                        <option value="Relaxation">Relaxation</option>
                         <option value="Nightlife">Nightlife</option>
-                        <option value="Relaxation">Relaxation / Spa</option>
                       </select>
                     </div>
 
                     <div>
-                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Cost (₹ INR)</label>
+                      <label className="block text-xs font-data-mono font-bold text-slate mb-1">COST ($ USD)</label>
                       <input
                         type="number"
-                        value={newActCost}
-                        onChange={(e) => setNewActCost(e.target.value)}
-                        className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
+                        min="0"
+                        placeholder="0"
+                        value={actCost}
+                        onChange={(e) => setActCost(e.target.value)}
+                        className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy font-data-mono"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Time Slot / Time</label>
+                    <label className="block text-xs font-data-mono font-bold text-slate mb-1">SCHEDULED TIME</label>
                     <input
                       type="text"
-                      value={newActTime}
-                      onChange={(e) => setNewActTime(e.target.value)}
-                      placeholder="e.g. 10:00 AM or Morning"
-                      className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
+                      placeholder="e.g. 09:30 AM"
+                      value={actTime}
+                      onChange={(e) => setActTime(e.target.value)}
+                      className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy font-data-mono"
                     />
                   </div>
 
-                  <div className="flex justify-end gap-2 pt-2">
+                  <div>
+                    <label className="block text-xs font-data-mono font-bold text-slate mb-1">DESCRIPTION (OPTIONAL)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Brief notes about this activity..."
+                      value={actDesc}
+                      onChange={(e) => setActDesc(e.target.value)}
+                      className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => setShowActivityModal(null)}
-                      className="px-4 py-2 border border-slate rounded text-xs text-slate hover:bg-surface-container"
+                      className="px-4 py-2 border border-slate text-slate rounded text-xs font-bold hover:bg-surface-container"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      disabled={savingItem}
-                      className="px-5 py-2 bg-horizon-amber text-ink-navy font-bold rounded text-xs hover:opacity-90 disabled:opacity-50"
+                      disabled={addingAct}
+                      className="px-5 py-2 bg-horizon-amber text-ink-navy font-bold rounded text-xs hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
                     >
-                      {savingItem ? 'Saving...' : 'Add Activity'}
+                      {addingAct && <div className="w-3 h-3 border-2 border-ink-navy border-t-transparent rounded-full animate-spin"></div>}
+                      <span>Save Activity</span>
                     </button>
                   </div>
                 </form>
