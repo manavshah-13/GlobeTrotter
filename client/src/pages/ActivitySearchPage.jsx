@@ -3,10 +3,10 @@ import { SidebarNav, TopAppBar } from '../components/Navigation';
 import { getTrips, assignActivity, removeActivity, recommendActivities } from '../services/api';
 
 const DEFAULT_ACTIVITIES = [
-  { id: 'act-sample-1', title: 'Tsukiji Outer Market Food Tour', city: 'Tokyo', category: 'Culinary', rating: 4.9, price: 75, img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80' },
-  { id: 'act-sample-2', title: 'Fushimi Inari Early Morning Shrine Hike', city: 'Kyoto', category: 'Culture & Nature', rating: 4.9, price: 35, img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80' },
-  { id: 'act-sample-3', title: 'Kanazawa Gold Leaf Crafting Workshop', city: 'Kanazawa', category: 'Art & Craft', rating: 4.8, price: 45, img: 'https://images.unsplash.com/photo-1528164344705-47542687990d?auto=format&fit=crop&w=500&q=80' },
-  { id: 'act-sample-4', title: 'Dotonbori Street Food & Izakaya Crawl', city: 'Osaka', category: 'Nightlife', rating: 4.7, price: 60, img: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=500&q=80' }
+  { id: 'act-sample-1', title: 'Ujjain Mahakaleshwar Temple & Bhasma Aarti', city: 'Ujjain', category: 'Culture', rating: 4.9, price: 250, img: 'https://images.unsplash.com/photo-1609946727292-c94318c5e638?auto=format&fit=crop&w=500&q=80' },
+  { id: 'act-sample-2', title: 'Dal Lake Sunset Shikara Boat Ride', city: 'Srinagar', category: 'Sightseeing', rating: 4.9, price: 800, img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0?auto=format&fit=crop&w=500&q=80' },
+  { id: 'act-sample-3', title: 'Tsukiji Outer Market Culinary Tasting', city: 'Tokyo', category: 'Food', rating: 4.8, price: 1500, img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80' },
+  { id: 'act-sample-4', title: 'Fushimi Inari Torii Shrine Hike', city: 'Kyoto', category: 'Culture', rating: 4.7, price: 500, img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80' }
 ];
 
 export default function ActivitySearchPage() {

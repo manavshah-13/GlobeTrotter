@@ -100,8 +100,9 @@ Given a travel prompt:
 - Destination: "${destination}"
 - Parse the EXACT number of days requested in prompt (default to 4 if unspecified).
 - Create a realistic itinerary where EVERY SINGLE DAY HAS COMPLETELY UNIQUE, NON-REPEATING ACTIVITIES.
+- ALL COSTS MUST BE IN INDIAN RUPEES (INR, ₹). Use realistic Indian prices (e.g. ₹200 to ₹1,500 per activity).
 - Day 1 MUST be different from Day 2, Day 3, Day 4, etc. Use REAL landmark names, real temple names, real street food markets, and real attraction spots in "${destination}".
-- Each activity MUST have a distinct title, distinct description, category, cost in USD, and scheduled time.
+- Each activity MUST have a distinct title, distinct description, category, cost in INR (₹), and scheduled time.
 - Group activities cleanly by day_number (1, 2, 3, 4...).`;
 
   const userPrompt = `Destination: ${destination}. Full Prompt: "${prompt}". ${startDate ? `Start date: ${startDate}` : ''}`;
@@ -124,7 +125,7 @@ export async function recommendActivitiesWithAI(
   const cleanCity = cleanLocationName(cityName);
   const systemInstruction = `You are GlobeTrotter's Local Concierge AI.
 Provide 3 UNIQUE activity recommendations for "${cleanCity}" tailored to budget level "${budgetLevel}".
-- Include distinct activity name, category, cost in USD, duration in minutes, and EXACTLY ONE short sentence reason.`;
+- Include distinct activity name, category, cost in INDIAN RUPEES (INR, ₹ e.g. ₹300-₹1200), duration in minutes, and EXACTLY ONE short sentence reason.`;
 
   const userPrompt = `City: "${cleanCity}", Budget: "${budgetLevel}"`;
 
@@ -146,7 +147,7 @@ export async function estimateBudgetWithAI(
 ): Promise<BudgetEstimateResponse> {
   const cleanDest = cleanLocationName(destination);
   const systemInstruction = `You are GlobeTrotter's AI Travel Budget Estimator.
-Provide realistic average daily costs and categorical breakdown (accommodation, food, activities, transport) in USD.`;
+Provide realistic average daily costs and categorical breakdown (accommodation, food, activities, transport) in INDIAN RUPEES (INR, ₹).`;
 
   const userPrompt = `Destination: "${cleanDest}", Days: ${days}, Style: "${travelStyle}"`;
 
@@ -163,7 +164,7 @@ Provide realistic average daily costs and categorical breakdown (accommodation, 
 // =========================================================================
 export async function generateAdminInsightWithAI(recentTripsSummary: any[]): Promise<AdminInsightResponse> {
   const systemInstruction = `You are GlobeTrotter's Analytics AI Engine.
-Analyze the provided user trips summary and synthesize EXACTLY ONE punchy trend sentence.`;
+Analyze the provided user trips summary and synthesize EXACTLY ONE punchy trend sentence in INR.`;
 
   const userPrompt = `Data: ${JSON.stringify(recentTripsSummary)}`;
 
@@ -171,13 +172,13 @@ Analyze the provided user trips summary and synthesize EXACTLY ONE punchy trend 
     return await callGeminiStructuredAI<AdminInsightResponse>(systemInstruction, userPrompt, ADMIN_INSIGHT_JSON_SCHEMA);
   } catch (error) {
     return {
-      insight: 'Most-requested destinations this week: Ujjain, Kashmir, and Tokyo with balanced itineraries.'
+      insight: 'Most-requested destinations this week: Ujjain, Kashmir, and Jaipur with budget-friendly INR itineraries.'
     };
   }
 }
 
 // =========================================================================
-// RICH UNIQUE FALLBACK GENERATOR (Zero repetition guaranteed)
+// RICH UNIQUE FALLBACK GENERATOR IN INDIAN RUPEES (₹)
 // =========================================================================
 function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const lower = prompt.toLowerCase();
@@ -187,72 +188,66 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
 
   const isUjjain = lower.includes('ujjain') || lower.includes('ujj') || lower.includes('mahakal');
   const isKashmir = lower.includes('kashmir') || lower.includes('srinagar') || lower.includes('gulmarg');
-  const isJapan = lower.includes('tokyo') || lower.includes('japan') || lower.includes('kyoto');
 
   let activities: any[] = [];
 
   if (isUjjain) {
     const ujjainPool = [
       // Day 1
-      { day_number: 1, name: 'Mahakaleshwar Jyotirlinga Darshan & Sacred Bhasma Aarti', category: 'Culture', cost: 10, time_slot: '06:00', desc: 'Visit one of the 12 sacred Jyotirlingas of Lord Shiva for early morning prayers.', img: 'https://images.unsplash.com/photo-1609946727292-c94318c5e638' },
-      { day_number: 1, name: 'Ram Ghat Shipra River Promenade & Holy Dip', category: 'Sightseeing', cost: 5, time_slot: '11:00', desc: 'Stroll along the historic bathing ghats of Shipra river where Kumbh Mela is celebrated.', img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0' },
-      { day_number: 1, name: 'Harsiddhi Mata Temple & 101 Deep Stambha Illumination', category: 'Culture', cost: 5, time_slot: '18:30', desc: 'Witness the grand evening lighting of hundreds of oil lamps on twin stone pillars.', img: 'https://images.unsplash.com/photo-1597074866923-dc0588505c44' },
+      { day_number: 1, name: 'Mahakaleshwar Jyotirlinga Darshan & Sacred Bhasma Aarti', category: 'Culture', cost: 250, time_slot: '06:00', desc: 'Visit one of the 12 sacred Jyotirlingas of Lord Shiva for early morning prayers.' },
+      { day_number: 1, name: 'Ram Ghat Shipra River Promenade & Holy Dip', category: 'Sightseeing', cost: 150, time_slot: '11:00', desc: 'Stroll along the historic bathing ghats of Shipra river where Simhastha Kumbh is celebrated.' },
+      { day_number: 1, name: 'Harsiddhi Mata Temple & 101 Deep Stambha Illumination', category: 'Culture', cost: 100, time_slot: '18:30', desc: 'Witness the grand evening lighting of hundreds of oil lamps on twin stone pillars.' },
       // Day 2
-      { day_number: 2, name: 'Kal Bhairav Temple & Sacred Traditional Offerings', category: 'Culture', cost: 5, time_slot: '09:30', desc: 'Visit the unique guardian deity temple of Ujjain renowned for traditional rituals.', img: 'https://images.unsplash.com/photo-1548013146-72479768bada' },
-      { day_number: 2, name: 'Ved Shala (Jantar Mantar) Astronomical Observatory', category: 'Sightseeing', cost: 8, time_slot: '14:00', desc: 'Explore 18th-century masonry instruments built by Raja Jai Singh for planetary tracking.', img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb' },
-      { day_number: 2, name: 'Tower Chowk & Gopal Mandir Street Food Trail', category: 'Food', cost: 12, time_slot: '19:00', desc: 'Sample authentic Malwi poha-jalebi, sabudana khichdi, and rabri in old Ujjain.', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5' },
+      { day_number: 2, name: 'Kal Bhairav Temple & Sacred Traditional Offerings', category: 'Culture', cost: 150, time_slot: '09:30', desc: 'Visit the guardian deity temple of Ujjain renowned for ancient tantric rituals.' },
+      { day_number: 2, name: 'Ved Shala (Jantar Mantar) Astronomical Observatory', category: 'Sightseeing', cost: 100, time_slot: '14:00', desc: 'Explore 18th-century masonry instruments built by Raja Jai Singh for planetary tracking.' },
+      { day_number: 2, name: 'Tower Chowk & Gopal Mandir Street Food Trail', category: 'Food', cost: 400, time_slot: '19:00', desc: 'Sample authentic Malwi poha-jalebi, sabudana khichdi, and rabri in old Ujjain.' },
       // Day 3
-      { day_number: 3, name: 'Sandipani Ashram Ancient Hermitage Exploration', category: 'Culture', cost: 5, time_slot: '09:30', desc: 'Visit the legendary ashram where Lord Krishna and Sudama received their education.', img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800' },
-      { day_number: 3, name: 'Chintaman Ganesh Temple & Vikramaditya Memorial', category: 'Sightseeing', cost: 6, time_slot: '14:00', desc: 'Explore the ancient swayambhu Ganesh shrine and King Vikramaditya history park.', img: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb' },
-      { day_number: 3, name: 'Freeganj Bazaar Shopping & Bhutta Ri Roti Tasting', category: 'Food', cost: 15, time_slot: '18:30', desc: 'Browse handcrafted brassware, textiles, and enjoy traditional local dinners.', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5' },
+      { day_number: 3, name: 'Sandipani Ashram Ancient Hermitage Exploration', category: 'Culture', cost: 100, time_slot: '09:30', desc: 'Visit the legendary ashram where Lord Krishna and Sudama received their education.' },
+      { day_number: 3, name: 'Chintaman Ganesh Temple & Vikramaditya Memorial', category: 'Sightseeing', cost: 150, time_slot: '14:00', desc: 'Explore the ancient swayambhu Ganesh shrine and King Vikramaditya history park.' },
+      { day_number: 3, name: 'Freeganj Bazaar Shopping & Malwi Thali Dinner', category: 'Food', cost: 600, time_slot: '18:30', desc: 'Browse handcrafted brassware, Maheshwari sarees, and enjoy traditional local dinners.' },
       // Day 4
-      { day_number: 4, name: 'Mangalnath Temple & Shipra Sunset Boat Ride', category: 'Sightseeing', cost: 10, time_slot: '09:30', desc: 'Visit the birth site of Mars according to Indian astronomy, followed by a serene boat ride.', img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0' },
-      { day_number: 4, name: 'Bhartrihari Caves & Kaliadeh Palace Excursion', category: 'Adventure', cost: 12, time_slot: '14:00', desc: 'Explore riverside caves where saint Bhartrihari meditated and historic water palaces.', img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800' }
+      { day_number: 4, name: 'Mangalnath Temple & Shipra Sunset Boat Ride', category: 'Sightseeing', cost: 250, time_slot: '09:30', desc: 'Visit the birth site of Mars according to Indian astronomy, followed by a serene boat ride.' },
+      { day_number: 4, name: 'Bhartrihari Caves & Kaliadeh Water Palace Excursion', category: 'Adventure', cost: 300, time_slot: '14:00', desc: 'Explore riverside caves where saint Bhartrihari meditated and historic water palaces.' }
     ];
 
     activities = ujjainPool.filter(a => a.day_number <= requestedDays);
   } else if (isKashmir) {
     const kashmirPool = [
-      { day_number: 1, name: 'Shikara Boat Ride on Dal Lake & Floating Market', category: 'Sightseeing', cost: 15, time_slot: '09:30', desc: 'Glide across pristine waters of Dal Lake in a traditional wooden shikara boat.', img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0' },
-      { day_number: 1, name: 'Mughal Gardens (Shalimar & Nishat Bagh) Exploration', category: 'Culture', cost: 5, time_slot: '14:00', desc: 'Stroll through terraced lawns, cascading fountains, and historic Persian gardens.', img: 'https://images.unsplash.com/photo-1597074866923-dc0588505c44' },
-      { day_number: 2, name: 'Gulmarg Gondola Cable Car Ride to Apharwat Peak', category: 'Adventure', cost: 25, time_slot: '10:00', desc: 'Ride one of the highest cable cars in the world for spectacular Himalayan snow views.', img: 'https://images.unsplash.com/photo-1548013146-72479768bada' },
-      { day_number: 2, name: 'Traditional Kashmiri Wazwan Culinary Feast', category: 'Food', cost: 20, time_slot: '18:30', desc: 'Enjoy authentic Kashmiri rogan josh, gushtaba, and kahwa tea.', img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5' },
-      { day_number: 3, name: 'Pahalgam Aru & Betaab Valley Scenic Nature Walk', category: 'Sightseeing', cost: 15, time_slot: '09:30', desc: 'Explore lush pine forests and crystalline Lidder River in Pahalgam.', img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800' },
-      { day_number: 3, name: 'Lal Chowk Handicraft & Pure Saffron Market Shopping', category: 'Culture', cost: 30, time_slot: '15:00', desc: 'Shop for authentic Pashmina shawls, walnut woodcraft, and Kashmiri saffron.', img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0' },
-      { day_number: 4, name: 'Sonamarg Thajiwas Glacier Pony Trek', category: 'Adventure', cost: 35, time_slot: '09:30', desc: 'Trek along snow-capped meadow peaks and alpine streams in Sonamarg.', img: 'https://images.unsplash.com/photo-1548013146-72479768bada' }
+      { day_number: 1, name: 'Shikara Boat Ride on Dal Lake & Floating Market', category: 'Sightseeing', cost: 800, time_slot: '09:30', desc: 'Glide across pristine waters of Dal Lake in a traditional wooden shikara boat.' },
+      { day_number: 1, name: 'Mughal Gardens (Shalimar & Nishat Bagh) Exploration', category: 'Culture', cost: 200, time_slot: '14:00', desc: 'Stroll through terraced lawns, cascading fountains, and historic Persian gardens.' },
+      { day_number: 2, name: 'Gulmarg Gondola Cable Car Ride to Apharwat Peak', category: 'Adventure', cost: 1800, time_slot: '10:00', desc: 'Ride one of the highest cable cars in the world for spectacular Himalayan snow views.' },
+      { day_number: 2, name: 'Traditional Kashmiri Wazwan Culinary Feast', category: 'Food', cost: 1200, time_slot: '18:30', desc: 'Enjoy authentic Kashmiri rogan josh, gushtaba, and saffron kahwa tea.' },
+      { day_number: 3, name: 'Pahalgam Aru & Betaab Valley Scenic Nature Walk', category: 'Sightseeing', cost: 600, time_slot: '09:30', desc: 'Explore lush pine forests and crystalline Lidder River in Pahalgam.' },
+      { day_number: 3, name: 'Lal Chowk Handicraft & Pure Saffron Market Shopping', category: 'Culture', cost: 1500, time_slot: '15:00', desc: 'Shop for authentic Pashmina shawls, walnut woodcraft, and Kashmiri saffron.' },
+      { day_number: 4, name: 'Sonamarg Thajiwas Glacier Pony Trek', category: 'Adventure', cost: 1500, time_slot: '09:30', desc: 'Trek along snow-capped meadow peaks and alpine streams in Sonamarg.' }
     ];
     activities = kashmirPool.filter(a => a.day_number <= requestedDays);
   } else {
-    // Universal Rich Fallback Generator: Unique Activities for EVERY Day
+    // Universal Rich Fallback Generator: Unique INR Activities for EVERY Day
     const dayTemplates = [
       // Day 1
       [
-        { name: `${mainLocation} Historic Heritage & Landmark Walking Tour`, category: 'Culture', cost: 20, time_slot: '09:30', desc: `Explore historic architecture, iconic city plazas, and ancient heritage sites in ${mainLocation}.` },
-        { name: `${mainLocation} Traditional Food Market & Local Tasting`, category: 'Food', cost: 15, time_slot: '13:00', desc: `Sample regional culinary specialties, street food, and artisanal beverages in ${mainLocation}.` },
-        { name: `${mainLocation} Sunset Riverbank & Cultural Evening Promenade`, category: 'Sightseeing', cost: 10, time_slot: '18:00', desc: `Enjoy scenic golden-hour views and lively evening cultural walks across ${mainLocation}.` }
+        { name: `${mainLocation} Historic Heritage & Landmark Walking Tour`, category: 'Culture', cost: 350, time_slot: '09:30', desc: `Explore historic architecture, iconic city plazas, and ancient heritage sites in ${mainLocation}.` },
+        { name: `${mainLocation} Traditional Food Market & Local Tasting`, category: 'Food', cost: 500, time_slot: '13:00', desc: `Sample regional culinary specialties, street food, and artisanal beverages in ${mainLocation}.` },
+        { name: `${mainLocation} Sunset Riverbank & Cultural Evening Promenade`, category: 'Sightseeing', cost: 250, time_slot: '18:00', desc: `Enjoy scenic golden-hour views and lively evening cultural walks across ${mainLocation}.` }
       ],
       // Day 2
       [
-        { name: `${mainLocation} Sacred Temples & Sanctuary Trail`, category: 'Culture', cost: 25, time_slot: '09:00', desc: `Visit famous spiritual shrines, carved stone temples, and peaceful gardens in ${mainLocation}.` },
-        { name: `${mainLocation} Panoramic Hilltop Viewpoint & Nature Hike`, category: 'Adventure', cost: 18, time_slot: '14:00', desc: `Hike to high elevation viewpoints offering panoramic city and valley vistas.` },
-        { name: `${mainLocation} Night Bazaar & Traditional Performance Evening`, category: 'Nightlife', cost: 30, time_slot: '19:30', desc: `Experience vibrant evening bazaars, live traditional music, and light shows in ${mainLocation}.` }
+        { name: `${mainLocation} Sacred Temples & Sanctuary Trail`, category: 'Culture', cost: 400, time_slot: '09:00', desc: `Visit famous spiritual shrines, carved stone temples, and peaceful gardens in ${mainLocation}.` },
+        { name: `${mainLocation} Panoramic Hilltop Viewpoint & Nature Hike`, category: 'Adventure', cost: 600, time_slot: '14:00', desc: `Hike to high elevation viewpoints offering panoramic city and valley vistas.` },
+        { name: `${mainLocation} Night Bazaar & Traditional Performance Evening`, category: 'Nightlife', cost: 800, time_slot: '19:30', desc: `Experience vibrant evening bazaars, live traditional music, and light shows in ${mainLocation}.` }
       ],
       // Day 3
       [
-        { name: `${mainLocation} Science Observatory & Art Heritage Museum`, category: 'Sightseeing', cost: 22, time_slot: '10:00', desc: `Discover historic astronomical instruments, art galleries, and regional artifacts in ${mainLocation}.` },
-        { name: `${mainLocation} Artisan Craft & Handloom Souvenir Trail`, category: 'Culture', cost: 35, time_slot: '14:30', desc: `Learn local handicraft traditions and browse handmade silk, woodwork, and jewelry.` },
-        { name: `${mainLocation} Gourmet Fine Dining & Starlight Dinner`, category: 'Food', cost: 45, time_slot: '20:00', desc: `Gourmet dinner featuring authentic multi-course regional recipes.` }
+        { name: `${mainLocation} Science Observatory & Art Heritage Museum`, category: 'Sightseeing', cost: 300, time_slot: '10:00', desc: `Discover historic astronomical instruments, art galleries, and regional artifacts in ${mainLocation}.` },
+        { name: `${mainLocation} Artisan Craft & Handloom Souvenir Trail`, category: 'Culture', cost: 700, time_slot: '14:30', desc: `Learn local handicraft traditions and browse handmade silk, woodwork, and jewelry.` },
+        { name: `${mainLocation} Gourmet Fine Dining & Starlight Dinner`, category: 'Food', cost: 1200, time_slot: '20:00', desc: `Gourmet dinner featuring authentic multi-course regional recipes.` }
       ],
       // Day 4
       [
-        { name: `${mainLocation} Botanical Gardens & Serene Nature Reserve Walk`, category: 'Relaxation', cost: 12, time_slot: '09:30', desc: `Stroll through lush terraced gardens, lotus ponds, and ancient tree groves.` },
-        { name: `${mainLocation} Interactive Pottery & Local Workshop Experience`, category: 'Culture', cost: 28, time_slot: '14:00', desc: `Hands-on workshop with traditional master artisans in ${mainLocation}.` },
-        { name: `${mainLocation} Illuminated City Night Tour & Fountain Promenade`, category: 'Sightseeing', cost: 20, time_slot: '19:00', desc: `Marvel at lit-up monuments and nighttime architectural illumination.` }
-      ],
-      // Day 5
-      [
-        { name: `${mainLocation} Countryside Excursion & Alpine Lakes Trek`, category: 'Adventure', cost: 40, time_slot: '09:00', desc: `Day trip to tranquil lakes and picturesque countryside villages.` },
-        { name: `${mainLocation} Regional Tea & Spice Plantation Tasting Tour`, category: 'Food', cost: 35, time_slot: '14:00', desc: `Guided tasting of local spiced teas, fresh farm produce, and beverages.` }
+        { name: `${mainLocation} Botanical Gardens & Serene Nature Reserve Walk`, category: 'Relaxation', cost: 250, time_slot: '09:30', desc: `Stroll through lush terraced gardens, lotus ponds, and ancient tree groves.` },
+        { name: `${mainLocation} Interactive Pottery & Local Workshop Experience`, category: 'Culture', cost: 600, time_slot: '14:00', desc: `Hands-on workshop with traditional master artisans in ${mainLocation}.` },
+        { name: `${mainLocation} Illuminated City Night Tour & Fountain Promenade`, category: 'Sightseeing', cost: 400, time_slot: '19:00', desc: `Marvel at lit-up monuments and nighttime architectural illumination.` }
       ]
     ];
 
@@ -272,7 +267,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     }
   }
 
-  const formattedActivities = activities.map((a, idx) => ({
+  const formattedActivities = activities.map((a) => ({
     name: a.name,
     category: a.category,
     cost: a.cost,
@@ -310,14 +305,14 @@ function getFallbackRecommendations(cityName: string, budgetLevel: string): Acti
       {
         name: `${cityName} Historic District Self-Guided Heritage Walk`,
         category: 'Culture',
-        cost: isBudget ? 0 : 15,
+        cost: isBudget ? 0 : 250,
         duration_min: 120,
         reason: `Explore ${cityName}'s iconic monuments and historical sites on a ${budgetLevel} budget.`
       },
       {
         name: `${cityName} Street Food & Bazaars Culinary Tour`,
         category: 'Food',
-        cost: isBudget ? 10 : 35,
+        cost: isBudget ? 200 : 600,
         duration_min: 90,
         reason: `Sample authentic regional delicacies and local dishes.`
       },
@@ -336,20 +331,20 @@ function getFallbackBudget(destination: string, days: number, travelStyle: strin
   const isLuxury = travelStyle.toLowerCase().includes('luxury');
   const isBackpack = travelStyle.toLowerCase().includes('shoestring') || travelStyle.toLowerCase().includes('backpack');
 
-  let dailyAvg = 150;
-  let breakdown = { accommodation: 80, food: 40, activities: 20, transport: 10 };
+  let dailyAvg = 4500;
+  let breakdown = { accommodation: 2500, food: 1000, activities: 600, transport: 400 };
 
   if (isLuxury) {
-    dailyAvg = 450;
-    breakdown = { accommodation: 280, food: 100, activities: 50, transport: 20 };
+    dailyAvg = 15000;
+    breakdown = { accommodation: 9000, food: 3500, activities: 1500, transport: 1000 };
   } else if (isBackpack) {
-    dailyAvg = 50;
-    breakdown = { accommodation: 22, food: 15, activities: 8, transport: 5 };
+    dailyAvg = 1800;
+    breakdown = { accommodation: 900, food: 500, activities: 250, transport: 150 };
   }
 
   return {
     daily_average: dailyAvg,
     breakdown,
-    currency: 'USD'
+    currency: 'INR'
   };
 }
