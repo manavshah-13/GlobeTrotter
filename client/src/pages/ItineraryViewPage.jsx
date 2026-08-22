@@ -107,6 +107,43 @@ export default function ItineraryViewPage() {
                 </div>
               </div>
 
+              {/* Route-Line Visual Motif */}
+              {stops.length > 0 && (
+                <div className="bg-paper border border-slate p-6 rounded-lg overflow-x-auto">
+                  <div className="font-data-mono-sm text-xs font-bold text-slate mb-4">EXPEDITION ROUTE TIMELINE</div>
+                  <div className="flex items-center min-w-max px-4 py-2">
+                    {stops.map((st, i) => {
+                      const name = st.city_name || st.cities?.name || `Stop ${i + 1}`;
+                      const isLast = i === stops.length - 1;
+
+                      return (
+                        <React.Fragment key={st.id || i}>
+                          <div className="flex flex-col items-center">
+                            <div className="w-8 h-8 rounded-full bg-paper border-2 border-route-teal flex items-center justify-center font-data-mono font-bold text-xs text-route-teal shadow-sm">
+                              {i + 1}
+                            </div>
+                            <span className="font-headline-sm font-bold text-xs text-ink-navy mt-1.5 max-w-[100px] truncate text-center">
+                              {name}
+                            </span>
+                            <span className="font-data-mono text-[10px] text-slate">{st.trip_activities?.length || 0} acts</span>
+                          </div>
+
+                          {!isLast && (
+                            <div className="flex-grow mx-3 flex items-center min-w-[60px]">
+                              <div className="w-full border-t-2 border-dashed border-route-teal relative">
+                                <span className="material-symbols-outlined text-xs text-route-teal absolute -top-2 left-1/2 -translate-x-1/2">
+                                  arrow_forward
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Detailed Schedule and Summary Panel */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
                 <div className="lg:col-span-2 space-y-6">

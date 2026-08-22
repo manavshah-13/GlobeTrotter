@@ -2,13 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
 import { useAuth } from '../context/AuthContext';
-import { getTrips, deleteTrip } from '../services/api';
+import { getTrips, deleteTrip, updateTrip } from '../services/api';
 
 export default function MyTripsPage() {
   const { user } = useAuth();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Edit Modal State
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const loadTrips = async () => {
     try {
@@ -27,8 +35,38 @@ export default function MyTripsPage() {
     loadTrips();
   }, [user?.id]);
 
+  const openEditModal = (trip) => {
+    setEditingTrip(trip);
+    setEditName(trip.name || '');
+    setEditDesc(trip.description || '');
+    setEditStart(trip.start_date || '');
+    setEditEnd(trip.end_date || '');
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editingTrip || !editName.trim()) return;
+
+    setSavingEdit(true);
+    try {
+      await updateTrip(editingTrip.id, {
+        name: editName.trim(),
+        description: editDesc.trim(),
+        start_date: editStart,
+        end_date: editEnd
+      });
+
+      setEditingTrip(null);
+      await loadTrips();
+    } catch (err) {
+      alert(`Error updating trip: ${err.message}`);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const handleDelete = async (tripId, tripName) => {
-    if (!window.confirm(`Are you sure you want to permanently delete "${tripName}"?`)) return;
+    if (!window.confirm(`Are you sure you want to permanently delete "${tripName}" and all associated waypoints and activities?`)) return;
     try {
       await deleteTrip(tripId);
       await loadTrips();
@@ -163,27 +201,35 @@ export default function MyTripsPage() {
                               Waypoints: <strong className="text-ink-navy">{stopNames}</strong> • {stops.length} Stops • Activities: <strong className="text-ink-navy">${totalCost}</strong>
                             </span>
                             
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openEditModal(trip)}
+                                className="text-slate hover:text-ink-navy font-bold flex items-center gap-1 p-1"
+                                title="Edit trip details"
+                              >
+                                <span className="material-symbols-outlined text-base">edit_note</span>
+                                <span>Edit</span>
+                              </button>
                               <Link
                                 to={`/builder?tripId=${trip.id}`}
-                                className="text-ink-navy hover:text-horizon-amber font-bold flex items-center gap-1"
+                                className="text-ink-navy hover:text-horizon-amber font-bold flex items-center gap-1 p-1"
                               >
-                                <span className="material-symbols-outlined text-sm">edit</span>
+                                <span className="material-symbols-outlined text-base">route</span>
                                 <span>Builder</span>
                               </Link>
                               <Link
                                 to={`/itinerary?tripId=${trip.id}`}
-                                className="text-route-teal hover:underline font-bold flex items-center gap-1"
+                                className="text-route-teal hover:underline font-bold flex items-center gap-1 p-1"
                               >
-                                <span className="material-symbols-outlined text-sm">visibility</span>
-                                <span>View Itinerary</span>
+                                <span className="material-symbols-outlined text-base">visibility</span>
+                                <span>Itinerary</span>
                               </Link>
                               <button
                                 onClick={() => handleDelete(trip.id, trip.name)}
-                                className="text-alert-coral hover:bg-alert-coral/10 p-1 rounded transition-colors"
+                                className="text-alert-coral hover:bg-alert-coral/10 p-1.5 rounded transition-colors"
                                 title="Delete trip"
                               >
-                                <span className="material-symbols-outlined text-sm">delete</span>
+                                <span className="material-symbols-outlined text-base">delete</span>
                               </button>
                             </div>
                           </div>
@@ -193,6 +239,81 @@ export default function MyTripsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* EDIT TRIP MODAL */}
+          {editingTrip && (
+            <div className="fixed inset-0 bg-ink-navy/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-paper border border-slate rounded-lg p-6 max-w-md w-full shadow-2xl space-y-4">
+                <div className="flex justify-between items-center border-b border-slate pb-2">
+                  <h3 className="font-headline-sm text-lg font-bold text-ink-navy">Edit Trip Expedition</h3>
+                  <button onClick={() => setEditingTrip(null)} className="text-slate hover:text-ink-navy">
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEdit} className="space-y-4">
+                  <div>
+                    <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Trip Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-sm focus:outline-none focus:border-horizon-amber"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Description</label>
+                    <textarea
+                      rows="2"
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                      className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={editStart}
+                        onChange={(e) => setEditStart(e.target.value)}
+                        className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-data-mono-sm text-xs text-ink-navy font-bold mb-1">End Date</label>
+                      <input
+                        type="date"
+                        value={editEnd}
+                        onChange={(e) => setEditEnd(e.target.value)}
+                        className="w-full bg-paper border border-slate rounded px-3 py-2 font-data-mono text-xs focus:outline-none focus:border-horizon-amber"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingTrip(null)}
+                      className="px-4 py-2 border border-slate rounded text-xs text-slate hover:bg-surface-container"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingEdit}
+                      className="px-5 py-2 bg-horizon-amber text-ink-navy font-bold rounded text-xs hover:opacity-90 disabled:opacity-50"
+                    >
+                      {savingEdit ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </main>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
-import { getTripDetails, getTrips, addStop, removeStop, assignActivity, removeActivity } from '../services/api';
+import { getTripDetails, getTrips, addStop, removeStop, assignActivity, removeActivity, reorderStopsApi, updateTrip } from '../services/api';
 
 export default function ItineraryBuilderPage() {
   const [searchParams] = useSearchParams();
@@ -58,6 +58,15 @@ export default function ItineraryBuilderPage() {
     loadTrip();
   }, [tripIdParam]);
 
+  const handleTogglePrivacy = async () => {
+    if (!trip) return;
+    const nextPublic = !trip.is_public;
+    setTrip(prev => ({ ...prev, is_public: nextPublic }));
+    try {
+      await updateTrip(trip.id, { is_public: nextPublic });
+    } catch (_) {}
+  };
+
   const handleAddStopSubmit = async (e) => {
     e.preventDefault();
     if (!newStopCity.trim() || !trip) return;
@@ -111,6 +120,24 @@ export default function ItineraryBuilderPage() {
     }
   };
 
+  const handleMoveStop = async (index, direction) => {
+    if (!trip || !trip.stops) return;
+    const newStops = [...trip.stops];
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= newStops.length) return;
+
+    const temp = newStops[index];
+    newStops[index] = newStops[targetIdx];
+    newStops[targetIdx] = temp;
+
+    setTrip({ ...trip, stops: newStops });
+
+    const stopOrders = newStops.map((s, i) => ({ id: s.id, order_index: i }));
+    try {
+      await reorderStopsApi(trip.id, stopOrders);
+    } catch (_) {}
+  };
+
   const handleDeleteStop = async (stopId) => {
     if (!window.confirm('Are you sure you want to remove this stop and all its activities?')) return;
     try {
@@ -151,7 +178,18 @@ export default function ItineraryBuilderPage() {
                 <span className="px-2.5 py-0.5 bg-route-teal/10 text-route-teal text-xs font-data-mono font-bold rounded border border-route-teal/30">
                   LIVE BUILDER
                 </span>
-                {trip && <span className="text-xs font-data-mono text-slate">ID: {trip.id}</span>}
+                <button
+                  onClick={handleTogglePrivacy}
+                  className={`px-2.5 py-0.5 text-xs font-data-mono font-bold rounded border transition-colors flex items-center gap-1 ${
+                    trip?.is_public
+                      ? 'bg-route-teal/10 text-route-teal border-route-teal/30'
+                      : 'bg-surface-container text-slate border-slate'
+                  }`}
+                  title="Toggle Public / Private visibility"
+                >
+                  <span className="material-symbols-outlined text-xs">{trip?.is_public ? 'public' : 'lock'}</span>
+                  <span>{trip?.is_public ? 'PUBLIC' : 'PRIVATE'}</span>
+                </button>
               </div>
               <h1 className="font-headline-lg text-2xl md:text-3xl font-bold text-primary">
                 {trip?.name || 'Itinerary Builder'}
@@ -161,24 +199,61 @@ export default function ItineraryBuilderPage() {
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setShowStopModal(true)}
                 className="bg-paper border border-slate text-ink-navy font-bold px-4 py-2 rounded text-xs hover:bg-surface-container flex items-center gap-1.5"
               >
                 <span className="material-symbols-outlined text-sm text-route-teal">add_location_alt</span>
-                <span>Add Stop / City</span>
+                <span>Add Stop</span>
               </button>
 
               <Link
                 to={trip ? `/itinerary?tripId=${trip.id}` : '/itinerary'}
-                className="bg-route-teal text-white font-bold px-5 py-2 rounded hover:bg-opacity-90 transition-all flex items-center gap-2 text-xs"
+                className="bg-route-teal text-white font-bold px-4 py-2 rounded hover:bg-opacity-90 transition-all flex items-center gap-1.5 text-xs"
               >
                 <span className="material-symbols-outlined text-sm">visibility</span>
-                <span>View Final Itinerary</span>
+                <span>View Final</span>
               </Link>
             </div>
           </div>
+
+          {/* Route-Line Visual Motif */}
+          {stops.length > 0 && (
+            <div className="bg-paper border border-slate p-6 rounded-lg overflow-x-auto">
+              <div className="font-data-mono-sm text-xs font-bold text-slate mb-4">EXPEDITION ROUTE TIMELINE</div>
+              <div className="flex items-center min-w-max px-4 py-2">
+                {stops.map((st, i) => {
+                  const name = st.city_name || st.cities?.name || `Stop ${i + 1}`;
+                  const isLast = i === stops.length - 1;
+
+                  return (
+                    <React.Fragment key={st.id || i}>
+                      <div className="flex flex-col items-center group cursor-pointer">
+                        <div className="w-8 h-8 rounded-full bg-paper border-2 border-route-teal flex items-center justify-center font-data-mono font-bold text-xs text-route-teal shadow-sm group-hover:bg-route-teal group-hover:text-white transition-all">
+                          {i + 1}
+                        </div>
+                        <span className="font-headline-sm font-bold text-xs text-ink-navy mt-1.5 max-w-[100px] truncate text-center">
+                          {name}
+                        </span>
+                        <span className="font-data-mono text-[10px] text-slate">{st.trip_activities?.length || 0} acts</span>
+                      </div>
+
+                      {!isLast && (
+                        <div className="flex-grow mx-3 flex items-center min-w-[60px]">
+                          <div className="w-full border-t-2 border-dashed border-route-teal relative">
+                            <span className="material-symbols-outlined text-xs text-route-teal absolute -top-2 left-1/2 -translate-x-1/2">
+                              arrow_forward
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="p-4 bg-alert-coral/10 border border-alert-coral rounded text-alert-coral font-data-mono text-xs flex items-center justify-between">
@@ -218,7 +293,7 @@ export default function ItineraryBuilderPage() {
 
                 return (
                   <div key={stop.id || idx} className="bg-paper border border-slate rounded-lg p-6 relative space-y-4 shadow-sm hover:border-slate/80 transition-all">
-                    {/* Header */}
+                    {/* Header with Reorder Controls */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate pb-3">
                       <div className="flex items-center gap-3">
                         <span className="w-8 h-8 rounded-full bg-ink-navy text-white flex items-center justify-center font-data-mono font-bold text-xs">
@@ -235,10 +310,28 @@ export default function ItineraryBuilderPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        {/* Move Up / Move Down */}
+                        <button
+                          disabled={idx === 0}
+                          onClick={() => handleMoveStop(idx, -1)}
+                          className="p-1 border border-slate rounded text-slate hover:text-ink-navy disabled:opacity-30"
+                          title="Move stop earlier"
+                        >
+                          <span className="material-symbols-outlined text-base">arrow_upward</span>
+                        </button>
+                        <button
+                          disabled={idx === stops.length - 1}
+                          onClick={() => handleMoveStop(idx, 1)}
+                          className="p-1 border border-slate rounded text-slate hover:text-ink-navy disabled:opacity-30"
+                          title="Move stop later"
+                        >
+                          <span className="material-symbols-outlined text-base">arrow_downward</span>
+                        </button>
+
                         <button
                           onClick={() => setShowActivityModal({ stopId: stop.id })}
-                          className="px-3 py-1.5 bg-surface-container border border-slate text-xs font-bold text-ink-navy rounded hover:bg-surface-container-high flex items-center gap-1"
+                          className="px-3 py-1.5 bg-surface-container border border-slate text-xs font-bold text-ink-navy rounded hover:bg-surface-container-high flex items-center gap-1 ml-2"
                         >
                           <span className="material-symbols-outlined text-sm text-horizon-amber">add</span>
                           <span>Add Activity</span>

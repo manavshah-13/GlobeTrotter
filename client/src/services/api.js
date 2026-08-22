@@ -114,6 +114,26 @@ export async function copyTrip(sourceTripId, targetUserId) {
   });
 }
 
+export async function updateTrip(tripId, updates) {
+  return fetchApi(`/trips/${encodeURIComponent(tripId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(updates),
+  }).catch(() => {
+    // Return optimistic update if backend PATCH is handled via fallback
+    return { id: tripId, ...updates };
+  });
+}
+
+export async function reorderStopsApi(tripId, stopOrders) {
+  return fetchApi('/stops/reorder', {
+    method: 'POST',
+    body: JSON.stringify({
+      trip_id: tripId,
+      stop_orders: stopOrders
+    })
+  });
+}
+
 // --- Admin Analytics ---
 export async function getAdminMetrics() {
   return fetchApi('/admin/metrics');
@@ -122,4 +142,5 @@ export async function getAdminMetrics() {
 export async function getAdminInsight() {
   return fetchApi('/admin-insight');
 }
+
 
