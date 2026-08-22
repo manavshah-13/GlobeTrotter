@@ -14,7 +14,7 @@ import {
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const PRIMARY_MODEL = 'gemini-2.5-flash';
+const PRIMARY_MODEL = 'gemini-2.0-flash';
 const FALLBACK_MODEL = 'gemini-1.5-flash';
 
 /**
