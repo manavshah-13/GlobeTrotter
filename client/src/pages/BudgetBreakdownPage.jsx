@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { useCurrency } from '../context/CurrencyContext';
 import { getTripDetails, getTrips } from '../services/api';
 
 export default function BudgetBreakdownPage() {
   const [searchParams] = useSearchParams();
   const tripIdParam = searchParams.get('tripId');
+  const { formatCurrency } = useCurrency();
 
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,16 +38,16 @@ export default function BudgetBreakdownPage() {
   
   const activitiesTotal = activities.reduce((sum, a) => sum + (Number(a.cost) || 0), 0);
   
-  // Calculate dynamic days and proportional INR costs
+  // Calculate dynamic days and normalized USD baseline costs
   const startMs = trip?.start_date ? new Date(trip.start_date).getTime() : Date.now();
   const endMs = trip?.end_date ? new Date(trip.end_date).getTime() : Date.now() + 86400000 * 4;
   const daysCount = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) || (stops.length * 2) || 4);
 
-  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 1500 : 800) : 0;
-  const lodgingTotal = stops.length > 0 ? daysCount * 3000 : 0;
-  const foodTotal = stops.length > 0 ? daysCount * 1000 : 0;
+  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 120 : 60) : 0;
+  const lodgingTotal = stops.length > 0 ? daysCount * 110 : 0;
+  const foodTotal = stops.length > 0 ? daysCount * 45 : 0;
   const grandTotal = activitiesTotal + transitTotal + lodgingTotal + foodTotal;
-  const totalAllocation = Math.round(grandTotal * 1.15) || 10000;
+  const totalAllocation = Math.round(grandTotal * 1.15) || 1000;
   const remaining = Math.max(0, totalAllocation - grandTotal);
 
   // Generate per-day cost array for chart
@@ -59,7 +61,7 @@ export default function BudgetBreakdownPage() {
     return { day, stopName, cost };
   });
 
-  const maxDailyCost = Math.max(...dailyCosts.map(d => d.cost), 1000);
+  const maxDailyCost = Math.max(...dailyCosts.map(d => d.cost), 100);
 
   return (
     <div className="bg-background text-on-background min-h-screen flex">
@@ -73,19 +75,19 @@ export default function BudgetBreakdownPage() {
             <div>
               <h1 className="font-headline-lg text-2xl md:text-3xl font-bold text-primary">Budget & Cost Breakdown</h1>
               <p className="font-body-md text-slate mt-1">
-                {trip?.name || 'Trip Expedition'} • Total Allocation: ₹{totalAllocation.toLocaleString()}
+                {trip?.name || 'Trip Expedition'} • Total Allocation: {formatCurrency(totalAllocation)}
               </p>
             </div>
 
             <div className="bg-surface-container border border-slate p-4 rounded-lg flex items-center gap-6">
               <div>
                 <div className="font-data-mono-sm text-xs text-slate">TOTAL EXPENSES</div>
-                <div className="font-headline-lg text-2xl font-bold text-horizon-amber">₹{grandTotal.toLocaleString()}</div>
+                <div className="font-headline-lg text-2xl font-bold text-horizon-amber">{formatCurrency(grandTotal)}</div>
               </div>
               <div className="h-8 w-px bg-slate"></div>
               <div>
                 <div className="font-data-mono-sm text-xs text-slate">REMAINING</div>
-                <div className="font-headline-lg text-2xl font-bold text-route-teal">₹{remaining.toLocaleString()}</div>
+                <div className="font-headline-lg text-2xl font-bold text-route-teal">{formatCurrency(remaining)}</div>
               </div>
             </div>
           </div>
@@ -97,7 +99,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">flight</span>
                 <span>TRANSIT & TRAVEL</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{transitTotal.toLocaleString()}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">{formatCurrency(transitTotal)}</div>
             </div>
 
             <div className="bg-paper border border-slate p-5 rounded-lg">
@@ -105,7 +107,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">hotel</span>
                 <span>LODGING ({stops.length} STOPS)</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{lodgingTotal.toLocaleString()}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">{formatCurrency(lodgingTotal)}</div>
             </div>
 
             <div className="bg-paper border border-slate p-5 rounded-lg">
@@ -113,7 +115,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">local_activity</span>
                 <span>ACTIVITIES ({activities.length})</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{activitiesTotal.toLocaleString()}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">{formatCurrency(activitiesTotal)}</div>
             </div>
 
             <div className="bg-paper border border-slate p-5 rounded-lg">
@@ -121,7 +123,7 @@ export default function BudgetBreakdownPage() {
                 <span className="material-symbols-outlined text-sm">restaurant</span>
                 <span>MEALS & DINING</span>
               </div>
-              <div className="font-headline-lg text-xl font-bold text-ink-navy">₹{foodTotal.toLocaleString()}</div>
+              <div className="font-headline-lg text-xl font-bold text-ink-navy">{formatCurrency(foodTotal)}</div>
             </div>
           </div>
 
@@ -132,7 +134,7 @@ export default function BudgetBreakdownPage() {
                 <h2 className="font-headline-md text-xl font-bold text-ink-navy">Per-Day Cost Distribution</h2>
                 <p className="font-data-mono text-xs text-slate">Estimated daily expenditure across {daysCount} travel days</p>
               </div>
-              <span className="font-data-mono text-xs text-route-teal font-bold">Avg: ₹{Math.round(dailyBudgetAvg).toLocaleString()} / Day</span>
+              <span className="font-data-mono text-xs text-route-teal font-bold">Avg: {formatCurrency(dailyBudgetAvg)} / Day</span>
             </div>
 
             <div className="pt-4 pb-2 px-2 overflow-x-auto">
@@ -144,14 +146,14 @@ export default function BudgetBreakdownPage() {
                   return (
                     <div key={d.day} className="flex-1 flex flex-col items-center gap-1 group">
                       <span className="font-data-mono text-[10px] font-bold text-ink-navy opacity-0 group-hover:opacity-100 transition-opacity">
-                        ₹{d.cost.toLocaleString()}
+                        {formatCurrency(d.cost)}
                       </span>
                       <div
                         style={{ height: `${heightPercent}%` }}
                         className={`w-full max-w-[40px] rounded-t transition-all group-hover:brightness-110 ${
                           isHigh ? 'bg-alert-coral' : 'bg-horizon-amber'
                         }`}
-                        title={`Day ${d.day} (${d.stopName}): ₹${d.cost}`}
+                        title={`Day ${d.day} (${d.stopName}): ${formatCurrency(d.cost)}`}
                       ></div>
                       <span className="font-data-mono text-[10px] text-slate mt-1 font-bold">D{d.day}</span>
                     </div>
@@ -190,7 +192,7 @@ export default function BudgetBreakdownPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-ink-navy text-base">₹{transitTotal.toLocaleString()}</div>
+                  <div className="font-bold text-ink-navy text-base">{formatCurrency(transitTotal)}</div>
                   <span className="text-xs text-route-teal bg-route-teal/10 px-2 py-0.5 rounded border border-route-teal/30">Estimated</span>
                 </div>
               </div>
@@ -204,7 +206,7 @@ export default function BudgetBreakdownPage() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-ink-navy text-base">₹{lodgingTotal.toLocaleString()}</div>
+                  <div className="font-bold text-ink-navy text-base">{formatCurrency(lodgingTotal)}</div>
                   <span className="text-xs text-route-teal bg-route-teal/10 px-2 py-0.5 rounded border border-route-teal/30">Estimated</span>
                 </div>
               </div>
@@ -219,7 +221,7 @@ export default function BudgetBreakdownPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-ink-navy text-base">₹{(Number(act.cost) || 0).toLocaleString()}</div>
+                    <div className="font-bold text-ink-navy text-base">{formatCurrency(Number(act.cost) || 0)}</div>
                     <span className="text-xs text-horizon-amber bg-horizon-amber/10 px-2 py-0.5 rounded border border-horizon-amber/30">Activity</span>
                   </div>
                 </div>

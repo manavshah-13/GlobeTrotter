@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { useCurrency } from '../context/CurrencyContext';
 import { getTripDetails, getTrips, addStop, removeStop, assignActivity, removeActivity, updateTrip, reorderStopsApi } from '../services/api';
 
 export default function ItineraryBuilderPage() {
   const [searchParams] = useSearchParams();
   const tripIdParam = searchParams.get('tripId');
+  const { formatCurrency, currencySymbol } = useCurrency();
 
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -189,7 +191,7 @@ export default function ItineraryBuilderPage() {
                 {trip?.name || 'Itinerary Builder'}
               </h1>
               <p className="font-data-mono text-xs text-slate mt-1">
-                {trip ? `${trip.start_date} → ${trip.end_date} • ${stops.length} Stops • Est. Activities Total: ₹${activitiesTotal.toLocaleString()}` : 'Organize your route, cities, and scheduled activities.'}
+                {trip ? `${trip.start_date} → ${trip.end_date} • ${stops.length} Stops • Est. Activities Total: ${formatCurrency(activitiesTotal)}` : 'Organize your route, cities, and scheduled activities.'}
               </p>
             </div>
 
@@ -354,7 +356,7 @@ export default function ItineraryBuilderPage() {
                       <div className="font-data-mono-sm text-xs font-bold text-slate mb-3 flex items-center justify-between">
                         <span>ACTIVITIES ({activities.length})</span>
                         <span className="text-ink-navy font-bold">
-                          Stop Total: ₹{activities.reduce((s, a) => s + (Number(a.cost) || 0), 0).toLocaleString()}
+                          Stop Total: {formatCurrency(activities.reduce((s, a) => s + (Number(a.cost) || 0), 0))}
                         </span>
                       </div>
 
@@ -388,7 +390,7 @@ export default function ItineraryBuilderPage() {
 
                               <div className="flex items-center gap-2 flex-shrink-0">
                                 <span className="font-data-mono font-bold text-xs text-ink-navy">
-                                  ₹{(Number(act.cost) || 0).toLocaleString()}
+                                  {formatCurrency(Number(act.cost) || 0)}
                                 </span>
                                 <button
                                   onClick={() => handleDeleteActivity(act.id)}
@@ -437,7 +439,7 @@ export default function ItineraryBuilderPage() {
 
                                     <div className="flex items-center gap-2 flex-shrink-0">
                                       <span className="font-data-mono font-bold text-xs text-ink-navy">
-                                        ₹{(Number(act.cost) || 0).toLocaleString()}
+                                        {formatCurrency(Number(act.cost) || 0)}
                                       </span>
                                       <button
                                         onClick={() => handleDeleteActivity(act.id)}
@@ -576,11 +578,11 @@ export default function ItineraryBuilderPage() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-data-mono font-bold text-slate mb-1">COST (₹ INR)</label>
+                      <label className="block text-xs font-data-mono font-bold text-slate mb-1">COST ({currencySymbol})</label>
                       <input
                         type="number"
                         min="0"
-                        placeholder="250"
+                        placeholder="25"
                         value={actCost}
                         onChange={(e) => setActCost(e.target.value)}
                         className="w-full px-3 py-2 bg-surface-container border border-slate rounded text-sm font-body-md focus:border-horizon-amber outline-none text-ink-navy font-data-mono"

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { getTrips } from '../services/api';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { formatCurrency } = useCurrency();
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,9 +34,10 @@ export default function DashboardPage() {
   const endMs = latestTrip?.end_date ? new Date(latestTrip.end_date).getTime() : Date.now() + 86400000 * 4;
   const daysCount = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) || (stops.length * 2) || 4);
 
-  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 1500 : 800) : 0;
-  const lodgingTotal = stops.length > 0 ? daysCount * 3000 : 0;
-  const foodTotal = stops.length > 0 ? daysCount * 1000 : 0;
+  // Standard USD-based calculation
+  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 120 : 60) : 0;
+  const lodgingTotal = stops.length > 0 ? daysCount * 110 : 0;
+  const foodTotal = stops.length > 0 ? daysCount * 45 : 0;
   const totalCost = activitiesTotal + transitTotal + lodgingTotal + foodTotal;
 
   return (
@@ -91,7 +94,7 @@ export default function DashboardPage() {
                 <span>EST. LATEST BUDGET</span>
               </div>
               <div className="font-headline-lg text-3xl font-bold text-horizon-amber">
-                ₹{totalCost.toLocaleString()}
+                {formatCurrency(totalCost)}
               </div>
             </div>
           </div>
@@ -130,7 +133,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="bg-surface-container p-3 rounded border border-slate/60 text-center">
                   <div className="font-data-mono text-xs text-slate">EST. TOTAL</div>
-                  <div className="font-bold text-horizon-amber text-lg">₹{totalCost.toLocaleString()}</div>
+                  <div className="font-bold text-horizon-amber text-lg">{formatCurrency(totalCost)}</div>
                 </div>
               </div>
 
@@ -203,7 +206,7 @@ export default function DashboardPage() {
                     Ancient spiritual city on Shipra river famous for Mahakaleshwar temple & heritage ghats.
                   </p>
                   <div className="flex justify-between items-center pt-2 font-data-mono text-xs">
-                    <span className="text-route-teal font-bold">Est: ₹6,500 / 4 Days</span>
+                    <span className="text-route-teal font-bold">Est: {formatCurrency(240)} / 4 Days</span>
                     <Link to="/plan" className="text-ink-navy font-bold underline">Plan →</Link>
                   </div>
                 </div>
@@ -226,7 +229,7 @@ export default function DashboardPage() {
                     Pristine Dal Lake shikara rides, Mughal Gardens, and alpine gondola snow peaks.
                   </p>
                   <div className="flex justify-between items-center pt-2 font-data-mono text-xs">
-                    <span className="text-route-teal font-bold">Est: ₹18,500 / 5 Days</span>
+                    <span className="text-route-teal font-bold">Est: {formatCurrency(480)} / 5 Days</span>
                     <Link to="/plan" className="text-ink-navy font-bold underline">Plan →</Link>
                   </div>
                 </div>
@@ -249,7 +252,7 @@ export default function DashboardPage() {
                     Neon cityscapes, ancient shrines, bullet trains, and world-class culinary experiences.
                   </p>
                   <div className="flex justify-between items-center pt-2 font-data-mono text-xs">
-                    <span className="text-route-teal font-bold">Est: ₹45,000 / 7 Days</span>
+                    <span className="text-route-teal font-bold">Est: {formatCurrency(1450)} / 7 Days</span>
                     <Link to="/plan" className="text-ink-navy font-bold underline">Plan →</Link>
                   </div>
                 </div>

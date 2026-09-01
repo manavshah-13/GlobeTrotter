@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TopAppBar } from '../components/Navigation';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { createTrip, generateItinerary } from '../services/api';
 
 const AI_SUGGESTIONS = [
@@ -14,6 +15,7 @@ const AI_SUGGESTIONS = [
 export default function PlanNewTripPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { currencySymbol } = useCurrency();
 
   const [mode, setMode] = useState('ai'); // 'ai' | 'manual'
   const [loading, setLoading] = useState(false);
@@ -319,7 +321,7 @@ export default function PlanNewTripPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block font-headline-sm font-semibold text-ink-navy mb-2">Estimated Budget (₹ INR)</label>
+                  <label className="block font-headline-sm font-semibold text-ink-navy mb-2">Estimated Budget ({currencySymbol})</label>
                   <input
                     type="number"
                     value={manualBudget}

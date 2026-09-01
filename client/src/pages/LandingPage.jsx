@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { TopAppBar } from '../components/Navigation';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function LandingPage() {
+  const { formatCurrency } = useCurrency();
   return (
     <div className="bg-paper font-body-md text-ink-navy text-body-md min-h-screen flex flex-col antialiased">
       {/* Top Header with Screen Switcher & Quick Navigation */}
@@ -157,7 +159,7 @@ export default function LandingPage() {
                 <h4 className="font-headline-sm text-headline-sm text-ink-navy mb-2 group-hover:text-horizon-amber transition-colors">Kyoto & Beyond</h4>
                 <p className="font-body-md text-body-md text-slate text-sm mb-4">A 12-day cultural deep dive connecting ancient temples.</p>
                 <div className="w-full h-1 route-dash mb-4"></div>
-                <div className="font-data-mono text-data-mono text-ink-navy">12 DAYS · ₹1,95,000</div>
+                <div className="font-data-mono text-data-mono text-ink-navy">12 DAYS · {formatCurrency(2350)}</div>
               </div>
             </Link>
 
@@ -167,7 +169,7 @@ export default function LandingPage() {
                 <h4 className="font-headline-sm text-headline-sm text-ink-navy mb-2 group-hover:text-horizon-amber transition-colors">Patagonian Trails</h4>
                 <p className="font-body-md text-body-md text-slate text-sm mb-4">Rugged peaks and glacial lakes in the heart of the Andes.</p>
                 <div className="w-full h-1 route-dash mb-4"></div>
-                <div className="font-data-mono text-data-mono text-ink-navy">14 DAYS · ₹2,50,000</div>
+                <div className="font-data-mono text-data-mono text-ink-navy">14 DAYS · {formatCurrency(3000)}</div>
               </div>
             </Link>
 
@@ -177,7 +179,7 @@ export default function LandingPage() {
                 <h4 className="font-headline-sm text-headline-sm text-ink-navy mb-2 group-hover:text-horizon-amber transition-colors">Classic Italy</h4>
                 <p className="font-body-md text-body-md text-slate text-sm mb-4">Art, history, and gastronomy from Rome to Venice.</p>
                 <div className="w-full h-1 route-dash mb-4"></div>
-                <div className="font-data-mono text-data-mono text-ink-navy">10 DAYS · ₹2,25,000</div>
+                <div className="font-data-mono text-data-mono text-ink-navy">10 DAYS · {formatCurrency(2700)}</div>
               </div>
             </Link>
 
@@ -187,7 +189,7 @@ export default function LandingPage() {
                 <h4 className="font-headline-sm text-headline-sm text-ink-navy mb-2 group-hover:text-horizon-amber transition-colors">Nordic Winter</h4>
                 <p className="font-body-md text-body-md text-slate text-sm mb-4">Arctic adventures and aurora hunting in Lapland.</p>
                 <div className="w-full h-1 route-dash mb-4"></div>
-                <div className="font-data-mono text-data-mono text-ink-navy">8 DAYS · ₹2,80,000</div>
+                <div className="font-data-mono text-data-mono text-ink-navy">8 DAYS · {formatCurrency(3350)}</div>
               </div>
             </Link>
           </div>

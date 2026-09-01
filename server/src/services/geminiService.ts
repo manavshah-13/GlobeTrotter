@@ -16,14 +16,76 @@ dotenv.config();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const PRIMARY_MODEL = 'gemini-3.6-flash';
 
+export function formatLocationTitle(str: string): string {
+  if (!str) return 'Travel Destination';
+  return str
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(w => {
+      const lower = w.toLowerCase();
+      if (['and', '&', 'of', 'the', 'in', 'on', 'to'].includes(lower)) {
+        return lower === '&' ? '&' : lower;
+      }
+      return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
+export function extractDestinationName(rawPrompt: string): string {
+  if (!rawPrompt || typeof rawPrompt !== 'string') return 'Travel Destination';
+
+  // 1. Remove parenthesized travel style/metadata: e.g. "(Travel style: balanced)"
+  let cleaned = rawPrompt.replace(/\s*\(\s*travel\s*style\s*:[^)]*\)/gi, '').trim();
+
+  // If the prompt is already a concise destination (e.g. "Tokyo", "Paris", "Ujjain", "Tokyo, Kyoto", "Rome & Florence")
+  const isPlainLocation = !/\b(day|days|trip|tour|vacation|itinerary|adventure|expedition|guide|explore|exploring|retreat|getaway|holiday|backpacking|budget|flight|hotel)\b/i.test(cleaned);
+  if (isPlainLocation) {
+    const formatted = cleaned.replace(/[^A-Za-z\s,\.\-&']/g, ' ').replace(/\s+/g, ' ').trim();
+    if (formatted.length >= 2) {
+      return formatLocationTitle(formatted);
+    }
+  }
+
+  // 2. Remove any remaining parenthesized text (e.g. details)
+  const textWithoutParens = cleaned.replace(/\s*\([^)]*\)/g, '').trim();
+
+  // 3. Prepositional extraction patterns:
+  // e.g. "in Tokyo and Kyoto with...", "across the Swiss Alps", "through Naples, Positano, and Capri", "exploration of Rome, Florence, and Venice", "trip to Paris", "backpacking Thailand"
+  const prepPatterns = [
+    /\b(?:in|into|to|across|through|exploring|around|visit|visiting|of|backpacking)\s+([A-Za-z\s,&'\-]+?)(?:\s+(?:with|for|on|focusing|featuring|during|and\s+its|style|budget)\b|[,\.\(\]]|$)/i,
+    /\b(?:trip|tour|vacation|expedition|getaway|holiday|retreat)\s+(?:in|to|through|across|around|of)\s+([A-Za-z\s,&'\-]+?)(?:\s+(?:with|for|on|focusing|featuring|during)\b|[,\.\(\]]|$)/i
+  ];
+
+  for (const pattern of prepPatterns) {
+    const match = (textWithoutParens || cleaned).match(pattern);
+    if (match && match[1]) {
+      let dest = match[1].trim();
+      dest = dest.replace(/^the\s+/i, '').trim();
+      dest = dest.replace(/\b(on|with|for|and|a|an|the)\b$/i, '').trim();
+      if (dest.length >= 2) {
+        return formatLocationTitle(dest);
+      }
+    }
+  }
+
+  // 4. Fallback: Strip known filler words using WORD BOUNDARIES (\b...\b) so letters inside names are NEVER stripped
+  const text = (textWithoutParens || cleaned)
+    .replace(/\b\d+\s*-?\s*days?\b/gi, ' ')
+    .replace(/\b(travel|style|balanced|moderate|shoestring|budget|luxury|expedition|trip|planner|adventure|vacation|tour|culinary|food|culture|scenic|hiking|retreat|exploration|historical|coastal|road|getaway|backpacking|holiday|flight|hotel|tourist|visiting|visit|explore|exploring)\b/gi, ' ')
+    .replace(/\b(in|into|to|for|on|a|an|the|with|across|through|of|and|its|or)\b/gi, ' ')
+    .replace(/[^a-zA-Z\s\-&']/g, ' ')
+    .trim();
+
+  const words = text.split(/\s+/).filter(w => w.length > 1);
+  if (words.length > 0) {
+    return formatLocationTitle(words.slice(0, 4).join(' '));
+  }
+
+  return 'Travel Destination';
+}
+
 function cleanLocationName(rawPrompt: string): string {
-  if (!rawPrompt) return 'Travel Destination';
-  let clean = rawPrompt.replace(/\([^)]*\)/g, '');
-  clean = clean.replace(/\d+\s*-?\s*day[s]?/gi, '');
-  clean = clean.replace(/(trvel|travel|style|blnced|balanced|moderate|shoestring|luxury|expedition|trip|planner|adventure|in|to|for|on|a|the)/gi, '');
-  clean = clean.replace(/[^a-zA-Z\s]/g, ' ').trim();
-  if (!clean || clean.length < 2) return 'Travel Destination';
-  return clean.split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  return extractDestinationName(rawPrompt);
 }
 
 async function callGeminiStructuredAI<T>(
@@ -278,23 +340,66 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     time_slot: a.time_slot
   }));
 
+  const cityList = mainLocation
+    .split(/(?:\s+and\s+|,\s*(?:and\s+)?)/i)
+    .map(c => c.trim())
+    .filter(c => c.length > 1);
+
+  const distinctCities = cityList.length > 0 ? cityList : [mainLocation];
+  const daysPerCity = Math.max(1, Math.floor(requestedDays / distinctCities.length));
+
+  const stops = isUjjain
+    ? [
+        {
+          city_name: 'Ujjain',
+          country: 'India',
+          cost_index: 2,
+          popularity: 95,
+          city_image_url: 'https://images.unsplash.com/photo-1609946727292-c94318c5e638',
+          duration_days: requestedDays,
+          day_start: 1,
+          day_end: requestedDays,
+          activities: formattedActivities
+        }
+      ]
+    : isKashmir
+    ? [
+        {
+          city_name: 'Srinagar & Gulmarg',
+          country: 'India',
+          cost_index: 3,
+          popularity: 98,
+          city_image_url: 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d',
+          duration_days: requestedDays,
+          day_start: 1,
+          day_end: requestedDays,
+          activities: formattedActivities
+        }
+      ]
+    : distinctCities.map((cityName, idx) => {
+        const isLast = idx === distinctCities.length - 1;
+        const dayStart = idx * daysPerCity + 1;
+        const dayEnd = isLast ? requestedDays : (idx + 1) * daysPerCity;
+        const stopActivities = formattedActivities.filter(a => a.day_number >= dayStart && a.day_number <= dayEnd);
+
+        return {
+          city_name: cityName,
+          country: 'Travel Destination',
+          cost_index: 3,
+          popularity: 90,
+          city_image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+          duration_days: Math.max(1, dayEnd - dayStart + 1),
+          day_start: dayStart,
+          day_end: dayEnd,
+          activities: stopActivities.length > 0 ? stopActivities : formattedActivities
+        };
+      });
+
   return {
     name: `${requestedDays}-Day ${mainLocation} Expedition`,
     description: `A rich ${requestedDays}-day travel itinerary exploring iconic landmarks, local food, and cultural highlights in ${mainLocation}.`,
     cover_photo: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
-    stops: [
-      {
-        city_name: mainLocation,
-        country: 'Travel Destination',
-        cost_index: 3,
-        popularity: 90,
-        city_image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
-        duration_days: requestedDays,
-        day_start: 1,
-        day_end: requestedDays,
-        activities: formattedActivities
-      }
-    ]
+    stops
   };
 }
 

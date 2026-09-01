@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 
 const ALL_SCREENS = [
   { name: "Dashboard", path: "/dashboard", icon: "dashboard" },
@@ -79,6 +80,7 @@ export function TopAppBar({ title }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const { currency, setCurrency, supportedCurrencies } = useCurrency();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   const handleSignOut = () => {
@@ -99,7 +101,24 @@ export function TopAppBar({ title }) {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
+        {/* Currency Switcher */}
+        <div className="flex items-center bg-surface-container border border-slate rounded px-2 py-1">
+          <span className="material-symbols-outlined text-sm text-slate mr-1">payments</span>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value)}
+            className="bg-transparent font-data-mono text-xs text-ink-navy font-bold focus:outline-none cursor-pointer"
+            aria-label="Currency"
+          >
+            {supportedCurrencies.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} ({c.symbol})
+              </option>
+            ))}
+          </select>
+        </div>
+
         {isAuthPage ? (
           <Link
             to="/landing"
@@ -115,11 +134,11 @@ export function TopAppBar({ title }) {
               className="bg-horizon-amber text-ink-navy font-bold px-3.5 py-1.5 rounded text-xs hover:bg-opacity-90 transition-all flex items-center gap-1.5"
             >
               <span className="material-symbols-outlined text-base">add</span>
-              <span>New Trip</span>
+              <span className="hidden sm:inline">New Trip</span>
             </Link>
             <Link
               to="/settings"
-              className="text-xs font-data-mono text-ink-navy hover:text-horizon-amber hidden sm:inline-block"
+              className="text-xs font-data-mono text-ink-navy hover:text-horizon-amber hidden md:inline-block"
             >
               {user?.name?.split(' ')[0] || 'Profile'}
             </Link>
@@ -128,7 +147,7 @@ export function TopAppBar({ title }) {
               className="bg-paper border border-slate text-alert-coral font-bold px-3 py-1.5 rounded text-xs hover:bg-alert-coral/10 transition-colors flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-sm text-alert-coral">logout</span>
-              <span>Sign Out</span>
+              <span className="hidden sm:inline">Sign Out</span>
             </button>
           </>
         ) : (

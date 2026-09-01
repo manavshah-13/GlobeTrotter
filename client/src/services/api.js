@@ -6,8 +6,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export async function fetchApi(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const token = localStorage.getItem('globetrotter_token');
+
   const defaultHeaders = {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
   const response = await fetch(url, {
@@ -28,6 +31,27 @@ export async function fetchApi(endpoint, options = {}) {
   }
 
   return response.json();
+}
+
+// --- Auth Endpoints ---
+export async function loginApi({ email, password }) {
+  return fetchApi('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function registerApi(userData) {
+  return fetchApi('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  });
+}
+
+export async function fetchCurrentUser() {
+  return fetchApi('/auth/me', {
+    method: 'GET',
+  });
 }
 
 // --- AI Endpoints ---
@@ -142,5 +166,3 @@ export async function getAdminMetrics() {
 export async function getAdminInsight() {
   return fetchApi('/admin-insight');
 }
-
-

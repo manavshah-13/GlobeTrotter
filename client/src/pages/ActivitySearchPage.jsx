@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { useCurrency } from '../context/CurrencyContext';
 import { getTrips, assignActivity, removeActivity, recommendActivities } from '../services/api';
 
 const DEFAULT_ACTIVITIES = [
-  { id: 'act-sample-1', title: 'Ujjain Mahakaleshwar Temple & Bhasma Aarti', city: 'Ujjain', category: 'Culture', rating: 4.9, price: 250, img: 'https://images.unsplash.com/photo-1609946727292-c94318c5e638?auto=format&fit=crop&w=500&q=80' },
-  { id: 'act-sample-2', title: 'Dal Lake Sunset Shikara Boat Ride', city: 'Srinagar', category: 'Sightseeing', rating: 4.9, price: 800, img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0?auto=format&fit=crop&w=500&q=80' },
-  { id: 'act-sample-3', title: 'Tsukiji Outer Market Culinary Tasting', city: 'Tokyo', category: 'Food', rating: 4.8, price: 1500, img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80' },
-  { id: 'act-sample-4', title: 'Fushimi Inari Torii Shrine Hike', city: 'Kyoto', category: 'Culture', rating: 4.7, price: 500, img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80' }
+  { id: 'act-sample-1', title: 'Ujjain Mahakaleshwar Temple & Bhasma Aarti', city: 'Ujjain', category: 'Culture', rating: 4.9, price: 15, img: 'https://images.unsplash.com/photo-1609946727292-c94318c5e638?auto=format&fit=crop&w=500&q=80' },
+  { id: 'act-sample-2', title: 'Dal Lake Sunset Shikara Boat Ride', city: 'Srinagar', category: 'Sightseeing', rating: 4.9, price: 25, img: 'https://images.unsplash.com/photo-1566837945700-30057527ade0?auto=format&fit=crop&w=500&q=80' },
+  { id: 'act-sample-3', title: 'Tsukiji Outer Market Culinary Tasting', city: 'Tokyo', category: 'Food', rating: 4.8, price: 65, img: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=500&q=80' },
+  { id: 'act-sample-4', title: 'Fushimi Inari Torii Shrine Hike', city: 'Kyoto', category: 'Culture', rating: 4.7, price: 20, img: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=500&q=80' }
 ];
 
 export default function ActivitySearchPage() {
+  const { formatCurrency } = useCurrency();
   const [query, setQuery] = useState('');
   const [activitiesList, setActivitiesList] = useState(DEFAULT_ACTIVITIES);
   const [aiLoading, setAiLoading] = useState(false);
@@ -195,7 +197,7 @@ export default function ActivitySearchPage() {
                       )}
                     </div>
                     <div className="flex justify-between items-center text-xs font-data-mono pt-3 border-t border-slate">
-                      <span className="font-bold text-ink-navy text-sm">₹{act.price}</span>
+                      <span className="font-bold text-ink-navy text-sm">{formatCurrency(act.price)}</span>
                       <button
                         onClick={() => handleToggleActivity(act)}
                         className={`px-3 py-1.5 rounded font-bold transition-all flex items-center gap-1 ${

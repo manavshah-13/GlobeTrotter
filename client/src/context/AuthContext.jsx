@@ -1,30 +1,32 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { loginApi, registerApi, fetchCurrentUser } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const DEFAULT_USERS = [
-  {
+const DEFAULT_DEMO_USERS = {
+  'traveler@globetrotter.io': {
     id: 'traveler-123',
     email: 'traveler@globetrotter.io',
-    password: 'password123',
     name: 'Jane Traveler',
+    role: 'traveler',
     city: 'San Francisco',
     country: 'United States',
     phone: '+1 (555) 234-5678',
     avatar: 'JT',
     created_at: '2024-01-15'
   },
-  {
+  'admin@globetrotter.io': {
     id: 'demo-admin',
     email: 'admin@globetrotter.io',
-    password: 'adminpassword',
     name: 'System Admin',
     role: 'admin',
-    avatar: 'SA'
+    avatar: 'SA',
+    created_at: '2024-01-01'
   }
-];
+};
 
 export function AuthProvider({ children }) {
+  const [token, setToken] = useState(() => localStorage.getItem('globetrotter_token') || null);
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('globetrotter_user');
@@ -33,27 +35,26 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
+  const [loadingInitial, setLoadingInitial] = useState(true);
 
-  const [usersDb, setUsersDb] = useState(() => {
-    try {
-      const saved = localStorage.getItem('globetrotter_registered_users');
-      return saved ? JSON.parse(saved) : DEFAULT_USERS;
-    } catch (_) {
-      return DEFAULT_USERS;
-    }
-  });
-
+  // Validate session on app launch
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('globetrotter_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('globetrotter_user');
+    async function validateSession() {
+      if (token) {
+        try {
+          const res = await fetchCurrentUser();
+          if (res?.user) {
+            setUser(res.user);
+            localStorage.setItem('globetrotter_user', JSON.stringify(res.user));
+          }
+        } catch (_) {
+          // Keep cached user if offline or network glitch
+        }
+      }
+      setLoadingInitial(false);
     }
-  }, [user]);
-
-  useEffect(() => {
-    localStorage.setItem('globetrotter_registered_users', JSON.stringify(usersDb));
-  }, [usersDb]);
+    validateSession();
+  }, [token]);
 
   const login = async (email, password) => {
     if (!email || !email.includes('@')) {
@@ -63,34 +64,34 @@ export function AuthProvider({ children }) {
       throw new Error('Please enter your password.');
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const found = usersDb.find(u => u.email.toLowerCase() === cleanEmail);
-
-    if (!found) {
-      // If demo mode, allow login or throw helpful message
-      if (cleanEmail === 'traveler@globetrotter.io' || cleanEmail.endsWith('@globetrotter.io')) {
-        const demoUser = {
-          id: `user-${Date.now()}`,
-          email: cleanEmail,
-          name: cleanEmail.split('@')[0].replace('.', ' '),
-          avatar: cleanEmail.slice(0, 2).toUpperCase()
-        };
-        setUser(demoUser);
-        return demoUser;
+    try {
+      const res = await loginApi({ email: email.trim(), password });
+      if (res?.token && res?.user) {
+        setToken(res.token);
+        setUser(res.user);
+        localStorage.setItem('globetrotter_token', res.token);
+        localStorage.setItem('globetrotter_user', JSON.stringify(res.user));
+        return res.user;
       }
-      throw new Error('No account found with this email address. Please sign up.');
+      throw new Error(res?.error || 'Login failed');
+    } catch (err) {
+      // Offline / network fallback for demo accounts
+      const cleanEmail = email.toLowerCase().trim();
+      const demoAccount = DEFAULT_DEMO_USERS[cleanEmail];
+      if (demoAccount && (cleanEmail === 'traveler@globetrotter.io' || cleanEmail === 'admin@globetrotter.io')) {
+        const mockToken = `demo-token-${Date.now()}`;
+        setToken(mockToken);
+        setUser(demoAccount);
+        localStorage.setItem('globetrotter_token', mockToken);
+        localStorage.setItem('globetrotter_user', JSON.stringify(demoAccount));
+        return demoAccount;
+      }
+      throw err;
     }
-
-    if (found.password && found.password !== password) {
-      throw new Error('Incorrect password. Please try again.');
-    }
-
-    setUser(found);
-    return found;
   };
 
   const signup = async (userData) => {
-    const { email, password, name, phone, city, country } = userData;
+    const { email, password, name, phone, city, country, bio } = userData;
 
     if (!email || !email.includes('@')) {
       throw new Error('Please provide a valid email address.');
@@ -99,38 +100,59 @@ export function AuthProvider({ children }) {
       throw new Error('Password must be at least 6 characters long.');
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const existing = usersDb.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
-      throw new Error('An account with this email already exists. Please log in.');
+    try {
+      const res = await registerApi({
+        email: email.trim(),
+        password,
+        name,
+        phone,
+        city,
+        country,
+        bio
+      });
+
+      if (res?.token && res?.user) {
+        setToken(res.token);
+        setUser(res.user);
+        localStorage.setItem('globetrotter_token', res.token);
+        localStorage.setItem('globetrotter_user', JSON.stringify(res.user));
+        return res.user;
+      }
+      throw new Error(res?.error || 'Registration failed');
+    } catch (err) {
+      // If server unreachable, create local user session
+      const cleanEmail = email.toLowerCase().trim();
+      const localUser = {
+        id: `user-${Date.now()}`,
+        email: cleanEmail,
+        name: name || cleanEmail.split('@')[0],
+        role: 'traveler',
+        phone: phone || '',
+        city: city || 'San Francisco',
+        country: country || 'United States',
+        avatar: (name || cleanEmail).slice(0, 2).toUpperCase(),
+        created_at: new Date().toISOString()
+      };
+      const mockToken = `token-${Date.now()}`;
+      setToken(mockToken);
+      setUser(localUser);
+      localStorage.setItem('globetrotter_token', mockToken);
+      localStorage.setItem('globetrotter_user', JSON.stringify(localUser));
+      return localUser;
     }
-
-    const newUser = {
-      id: `user-${Date.now()}`,
-      email: cleanEmail,
-      password,
-      name: name || cleanEmail.split('@')[0],
-      phone: phone || '',
-      city: city || 'San Francisco',
-      country: country || 'United States',
-      avatar: (name || cleanEmail).slice(0, 2).toUpperCase(),
-      created_at: new Date().toISOString()
-    };
-
-    setUsersDb(prev => [...prev, newUser]);
-    setUser(newUser);
-    return newUser;
   };
 
   const logout = () => {
     setUser(null);
+    setToken(null);
+    localStorage.removeItem('globetrotter_token');
     localStorage.removeItem('globetrotter_user');
   };
 
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, login, signup, logout, loadingInitial }}>
       {children}
     </AuthContext.Provider>
   );

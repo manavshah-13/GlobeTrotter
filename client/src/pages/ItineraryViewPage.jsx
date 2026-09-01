@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { useCurrency } from '../context/CurrencyContext';
 import { getTripDetails, getTrips } from '../services/api';
 
 export default function ItineraryViewPage() {
   const [searchParams] = useSearchParams();
   const tripIdParam = searchParams.get('tripId');
+  const { formatCurrency } = useCurrency();
 
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,9 +49,9 @@ export default function ItineraryViewPage() {
   const endMs = trip?.end_date ? new Date(trip.end_date).getTime() : Date.now() + 86400000 * 4;
   const daysCount = Math.max(1, Math.round((endMs - startMs) / (1000 * 60 * 60 * 24)) || (stops.length * 2) || 4);
 
-  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 1500 : 800) : 0;
-  const lodgingTotal = stops.length > 0 ? daysCount * 3000 : 0;
-  const foodTotal = stops.length > 0 ? daysCount * 1000 : 0;
+  const transitTotal = stops.length > 0 ? (stops.length > 1 ? stops.length * 120 : 60) : 0;
+  const lodgingTotal = stops.length > 0 ? daysCount * 110 : 0;
+  const foodTotal = stops.length > 0 ? daysCount * 45 : 0;
   const grandTotal = activitiesTotal + transitTotal + lodgingTotal + foodTotal;
 
   return (
@@ -87,7 +89,7 @@ export default function ItineraryViewPage() {
                     {trip.name}
                   </h1>
                   <p className="font-data-mono text-sm text-slate">
-                    {trip.start_date} → {trip.end_date} • {daysCount} Days • {stops.length} Stops • Total Est: ₹{grandTotal.toLocaleString()}
+                    {trip.start_date} → {trip.end_date} • {daysCount} Days • {stops.length} Stops • Total Est: {formatCurrency(grandTotal)}
                   </p>
                   {trip.description && (
                     <p className="font-body-md text-xs text-slate mt-2 max-w-2xl">{trip.description}</p>
@@ -206,7 +208,7 @@ export default function ItineraryViewPage() {
                                     </div>
                                   </div>
                                   <span className="font-data-mono font-bold text-sm text-ink-navy bg-paper border border-slate px-2.5 py-1 rounded">
-                                    ₹{(Number(act.cost) || 0).toLocaleString()}
+                                    {formatCurrency(Number(act.cost) || 0)}
                                   </span>
                                 </div>
                               ))}
@@ -238,7 +240,7 @@ export default function ItineraryViewPage() {
                                         </div>
                                       </div>
                                       <span className="font-data-mono font-bold text-sm text-ink-navy bg-paper border border-slate px-2.5 py-1 rounded">
-                                        ₹{(Number(act.cost) || 0).toLocaleString()}
+                                        {formatCurrency(Number(act.cost) || 0)}
                                       </span>
                                     </div>
                                   ))}
@@ -260,23 +262,23 @@ export default function ItineraryViewPage() {
                     <div className="space-y-3 font-data-mono text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-slate">Activities Total:</span>
-                        <strong className="text-ink-navy">₹{activitiesTotal.toLocaleString()}</strong>
+                        <strong className="text-ink-navy">{formatCurrency(activitiesTotal)}</strong>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate">Transit & Transfers:</span>
-                        <strong className="text-ink-navy">₹{transitTotal.toLocaleString()}</strong>
+                        <strong className="text-ink-navy">{formatCurrency(transitTotal)}</strong>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate">Lodging & Accommodations:</span>
-                        <strong className="text-ink-navy">₹{lodgingTotal.toLocaleString()}</strong>
+                        <strong className="text-ink-navy">{formatCurrency(lodgingTotal)}</strong>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate">Estimated Meals:</span>
-                        <strong className="text-ink-navy">₹{foodTotal.toLocaleString()}</strong>
+                        <strong className="text-ink-navy">{formatCurrency(foodTotal)}</strong>
                       </div>
                       <div className="pt-3 border-t border-slate flex justify-between items-center text-sm font-bold">
                         <span className="text-ink-navy">Grand Total:</span>
-                        <span className="text-horizon-amber">₹{grandTotal.toLocaleString()}</span>
+                        <span className="text-horizon-amber">{formatCurrency(grandTotal)}</span>
                       </div>
                     </div>
 

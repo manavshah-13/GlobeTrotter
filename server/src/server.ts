@@ -26,6 +26,18 @@ import {
   getAdminMetrics,
 } from "./controllers/backendController.js";
 
+import {
+  registerHandler,
+  loginHandler,
+  getMeHandler,
+} from "./controllers/authController.js";
+
+import {
+  requireAuth,
+  requireAdmin,
+  optionalAuth,
+} from "./middlewares/authMiddleware.js";
+
 dotenv.config();
 
 const app = express();
@@ -41,19 +53,24 @@ apiRouter.get("/health", (req, res) => {
   res.json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
+// --- Authentication Endpoints ---
+apiRouter.post("/auth/register", registerHandler);
+apiRouter.post("/auth/login", loginHandler);
+apiRouter.get("/auth/me", requireAuth, getMeHandler);
+
 // --- AI Automation Endpoints ---
-apiRouter.post("/generate-itinerary", generateItineraryHandler);
+apiRouter.post("/generate-itinerary", optionalAuth, generateItineraryHandler);
 apiRouter.all("/recommend-activities", recommendActivitiesHandler);
 apiRouter.all("/estimate-budget", estimateBudgetHandler);
-apiRouter.all("/admin-insight", adminInsightHandler);
+apiRouter.all("/admin-insight", requireAuth, requireAdmin, adminInsightHandler);
 
 // --- Core Backend Endpoints ---
-apiRouter.get("/trips", getUserTrips);
-apiRouter.post("/trips", createTripManual);
+apiRouter.get("/trips", optionalAuth, getUserTrips);
+apiRouter.post("/trips", optionalAuth, createTripManual);
 apiRouter.get("/trips/:id", getTripDetails);
-apiRouter.delete("/trips/:id", deleteTrip);
+apiRouter.delete("/trips/:id", optionalAuth, deleteTrip);
 apiRouter.get("/trips/:id/budget", getTripBudget);
-apiRouter.post("/trips/copy", copyTripHandler);
+apiRouter.post("/trips/copy", optionalAuth, copyTripHandler);
 
 apiRouter.post("/stops", addStop);
 apiRouter.post("/stops/reorder", reorderStops);
@@ -64,7 +81,9 @@ apiRouter.delete("/trip-activities/:id", removeActivityFromStop);
 
 apiRouter.get("/cities", getCityCatalog);
 apiRouter.get("/activities", getActivityCatalog);
-apiRouter.get("/admin/metrics", getAdminMetrics);
+
+// Protected Admin Endpoints
+apiRouter.get("/admin/metrics", requireAuth, requireAdmin, getAdminMetrics);
 
 // Mount router on BOTH `/api` and `/` so all rewrite configurations work seamlessly
 app.use("/api", apiRouter);

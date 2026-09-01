@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { SidebarNav, TopAppBar } from '../components/Navigation';
+import { useCurrency } from '../context/CurrencyContext';
 import { getTripDetails, getTrips } from '../services/api';
 
 const STOP_COLOR_PALETTE = [
@@ -13,6 +14,7 @@ const STOP_COLOR_PALETTE = [
 export default function TripCalendarPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tripIdParam = searchParams.get('tripId');
+  const { formatCurrency } = useCurrency();
 
   const [trips, setTrips] = useState([]);
   const [selectedTrip, setSelectedTrip] = useState(null);
@@ -394,7 +396,7 @@ export default function TripCalendarPage() {
                                 {act.scheduled_time || '10:00'}
                               </span>
                               <span className="font-data-mono font-bold text-ink-navy">
-                                ₹{act.cost ?? 0}
+                                {formatCurrency(act.cost ?? 0)}
                               </span>
                             </div>
                             <div className="font-bold text-sm text-ink-navy">
