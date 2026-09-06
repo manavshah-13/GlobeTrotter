@@ -14,7 +14,21 @@ import {
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const PRIMARY_MODEL = 'gemini-3.6-flash';
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+
+export function isIndianDestination(text: string): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const indianCities = [
+    'india', 'varanasi', 'banaras', 'kashi', 'ujjain', 'kashmir', 'srinagar', 'gulmarg',
+    'jaipur', 'delhi', 'new delhi', 'mumbai', 'bombay', 'goa', 'kerala', 'agra',
+    'udaipur', 'jodhpur', 'rishikesh', 'haridwar', 'amritsar', 'bengaluru', 'bangalore',
+    'chennai', 'madras', 'kolkata', 'calcutta', 'hyderabad', 'pune', 'ahmedabad',
+    'mysore', 'mysuru', 'shimla', 'manali', 'leh', 'ladakh', 'darjeeling', 'gangtok',
+    'pondicherry', 'puducherry', 'hampi', 'kochi', 'cochin', 'munnar', 'alleppey'
+  ];
+  return indianCities.some(c => new RegExp(`\\b${c}\\b`, 'i').test(lower));
+}
 
 export function formatLocationTitle(str: string): string {
   if (!str) return 'Travel Destination';
@@ -38,7 +52,7 @@ export function extractDestinationName(rawPrompt: string): string {
   let cleaned = rawPrompt.replace(/\s*\(\s*travel\s*style\s*:[^)]*\)/gi, '').trim();
 
   // If the prompt is already a concise destination (e.g. "Tokyo", "Paris", "Ujjain", "Tokyo, Kyoto", "Rome & Florence")
-  const isPlainLocation = !/\b(day|days|trip|tour|vacation|itinerary|adventure|expedition|guide|explore|exploring|retreat|getaway|holiday|backpacking|budget|flight|hotel)\b/i.test(cleaned);
+  const isPlainLocation = !/\b(day|days|trip|tour|vacation|itinerary|adventure|expedition|guide|explore|exploring|retreat|getaway|holiday|backpacking|budget|flight|hotel|plan|planning)\b/i.test(cleaned);
   if (isPlainLocation) {
     const formatted = cleaned.replace(/[^A-Za-z\s,\.\-&']/g, ' ').replace(/\s+/g, ' ').trim();
     if (formatted.length >= 2) {
@@ -71,6 +85,7 @@ export function extractDestinationName(rawPrompt: string): string {
   // 4. Fallback: Strip known filler words using WORD BOUNDARIES (\b...\b) so letters inside names are NEVER stripped
   const text = (textWithoutParens || cleaned)
     .replace(/\b\d+\s*-?\s*days?\b/gi, ' ')
+    .replace(/\b(plan|planning|suggest|create|build|generate|make|organize)\b/gi, ' ')
     .replace(/\b(travel|style|balanced|moderate|shoestring|budget|luxury|expedition|trip|planner|adventure|vacation|tour|culinary|food|culture|scenic|hiking|retreat|exploration|historical|coastal|road|getaway|backpacking|holiday|flight|hotel|tourist|visiting|visit|explore|exploring)\b/gi, ' ')
     .replace(/\b(in|into|to|for|on|a|an|the|with|across|through|of|and|its|or)\b/gi, ' ')
     .replace(/[^a-zA-Z\s\-&']/g, ' ')
@@ -156,16 +171,18 @@ async function callGeminiStructuredAI<T>(
 // =========================================================================
 export async function generateItineraryWithAI(prompt: string, startDate?: string): Promise<GeneratedTripPlan> {
   const destination = cleanLocationName(prompt);
+  const isIndia = isIndianDestination(destination) || isIndianDestination(prompt);
 
   const systemInstruction = `You are GlobeTrotter's Master AI Travel Planner.
 Given a travel prompt:
 - Destination: "${destination}"
 - Parse the EXACT number of days requested in prompt (default to 4 if unspecified).
 - Create a realistic itinerary where EVERY SINGLE DAY HAS COMPLETELY UNIQUE, NON-REPEATING ACTIVITIES.
-- ALL COSTS MUST BE IN INDIAN RUPEES (INR, ₹). Use realistic Indian prices (e.g. ₹200 to ₹1,500 per activity).
-- Day 1 MUST be different from Day 2, Day 3, Day 4, etc. Use REAL landmark names, real temple names, real street food markets, and real attraction spots in "${destination}".
-- Each activity MUST have a distinct title, distinct description, category, cost in INR (₹), and scheduled time.
-- Group activities cleanly by day_number (1, 2, 3, 4...).`;
+${isIndia ? `- The destination is in India. ALL COSTS MUST BE IN INDIAN RUPEES (INR, ₹). Use realistic Indian prices (e.g. ₹100 to ₹1,500 per activity). Set currency to "INR".` : `- All activity costs must be realistic USD amounts (e.g. $10 to $60 per activity). Set currency to "USD".`}
+- Day 1 MUST be different from Day 2, Day 3, Day 4, etc.
+- STRICT GEOGRAPHIC ACCURACY & AUTHENTICITY: Activities must be strictly grounded in real, authentic landmarks and actual geography of "${destination}". DO NOT hallucinate hills, mountain viewpoints, nature hikes, or cable cars in river-plain cities like Varanasi, Agra, or Delhi. For Varanasi, focus exclusively on authentic river ghats (Assi, Dashashwamedh, Manikarnika), historic temples (Kashi Vishwanath, Sankat Mochan), morning boat rides on the Ganges, evening Ganga Aarti, Banarasi silk handloom weavers, authentic street food (kachori-jalebi, lassi, paan), and Sarnath.
+- Each activity MUST have a distinct title, distinct description, category, cost in ${isIndia ? 'INR (₹)' : 'USD ($)'}, and scheduled time.
+- Group activities cleanly by day_number (1, 2, 3, 4...). Every activity MUST have an accurate day_number.`;
 
   const userPrompt = `Destination: ${destination}. Full Prompt: "${prompt}". ${startDate ? `Start date: ${startDate}` : ''}`;
 
@@ -248,12 +265,45 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const requestedDays = dayMatch ? Math.max(1, parseInt(dayMatch[1], 10)) : 4;
   const mainLocation = cleanLocationName(prompt);
 
+  const isVaranasi = lower.includes('varanasi') || lower.includes('banaras') || lower.includes('kashi');
   const isUjjain = lower.includes('ujjain') || lower.includes('ujj') || lower.includes('mahakal');
   const isKashmir = lower.includes('kashmir') || lower.includes('srinagar') || lower.includes('gulmarg');
 
   let activities: any[] = [];
 
-  if (isUjjain) {
+  if (isVaranasi) {
+    const varanasiPool = [
+      // Day 1: Sacred Riverfront & Ganga Aarti
+      { day_number: 1, name: 'Assi Ghat Subah-e-Banaras Dawn Boat Ride & Morning Chants', category: 'Culture', cost: 350, time_slot: '06:00', desc: 'Experience dawn rowing on the holy Ganges with classical Vedic chanting and sunrise yoga at Assi Ghat.' },
+      { day_number: 1, name: 'Dashashwamedh Ghat & Old Vishwanath Gali Heritage Walk', category: 'Sightseeing', cost: 150, time_slot: '10:30', desc: 'Wander through ancient paved labyrinth lanes, brassware stalls, and historic riverfront ghats.' },
+      { day_number: 1, name: 'Dashashwamedh Ghat Grand Evening Ganga Aarti', category: 'Culture', cost: 0, time_slot: '18:30', desc: 'Witness the iconic evening ritual with brass lamps, conch shells, and devotional hymns along the holy river.' },
+      // Day 2: Kashi Vishwanath & Sacred Traditions
+      { day_number: 2, name: 'Shri Kashi Vishwanath Golden Temple Corridor Darshan', category: 'Culture', cost: 200, time_slot: '07:00', desc: 'Early morning darshan at the sacred Jyotirlinga shrine and newly renovated Kashi Vishwanath Dham corridor.' },
+      { day_number: 2, name: 'Manikarnika & Harishchandra Ghats Historic River Perspective', category: 'Sightseeing', cost: 300, time_slot: '11:00', desc: 'Observe centuries of sacred riverfront traditions, timeless burning ghats, and spiritual history from a boat.' },
+      { day_number: 2, name: 'Kachori Gali & Thatheri Bazaar Authentic Street Food Tasting', category: 'Food', cost: 350, time_slot: '17:30', desc: 'Taste authentic Banarasi kachori-sabzi, crispy jalebi, tamatar chaat, and local malaiyyo foam sweets.' },
+      // Day 3: Sarnath Buddhist Heritage
+      { day_number: 3, name: 'Sarnath Dhamek Stupa & Deer Park Pilgrimage', category: 'Sightseeing', cost: 250, time_slot: '09:00', desc: 'Visit the sacred Buddhist site where Gautama Buddha taught his first sermon following enlightenment.' },
+      { day_number: 3, name: 'Sarnath Archaeological Museum & Ashoka Lion Capital', category: 'Culture', cost: 100, time_slot: '13:00', desc: 'Marvel at the original 3rd-century BCE Ashokan Lion Capital (India national emblem) and antique Buddhist sculptures.' },
+      { day_number: 3, name: 'Mulagandha Kuti Vihara & Tibetan Monastery Visit', category: 'Relaxation', cost: 0, time_slot: '16:30', desc: 'Serene monastery grounds featuring Japanese frescoes and peaceful meditation courtyards.' },
+      // Day 4: Royal Fort & Handloom Weaving
+      { day_number: 4, name: 'Ramnagar Fort & Maharaja Vintage Carriage Museum', category: 'Sightseeing', cost: 200, time_slot: '09:30', desc: 'Cross the bridge to visit the 18th-century sandstone fortress of the Maharaja of Benares on the eastern riverbank.' },
+      { day_number: 4, name: 'Madanpura Banarasi Silk Weaving Village & Handloom Tour', category: 'Culture', cost: 400, time_slot: '14:00', desc: 'Meet generational master weavers crafting intricate gold zari Banarasi sarees on wooden looms.' },
+      { day_number: 4, name: 'Famous Blue Lassi Shop & Godowlia Market Evening Trail', category: 'Food', cost: 300, time_slot: '18:30', desc: 'Savor legendary hand-churned clay-cup lassis topped with pomegranate, dry fruits, and rabri.' },
+      // Day 5: Spiritual Learning & Museums
+      { day_number: 5, name: 'Sankat Mochan Hanuman Temple & Tulsi Manas Mandir', category: 'Culture', cost: 50, time_slot: '08:30', desc: 'Visit the historic temple founded by Goswami Tulsidas and the marble shrine engraved with Ramcharitmanas verses.' },
+      { day_number: 5, name: 'Banaras Hindu University (BHU) Campus & New Vishwanath Temple', category: 'Sightseeing', cost: 100, time_slot: '11:30', desc: 'Stroll through the tree-lined heritage campus and admire the soaring 77-meter marble tower of Birla Temple.' },
+      { day_number: 5, name: 'Bharat Kala Bhavan Archaeological & Miniature Art Museum', category: 'Culture', cost: 150, time_slot: '15:00', desc: 'Explore rare Mughal miniatures, palm-leaf manuscripts, and historical Banarasi textiles.' },
+      // Day 6: Northern Ghats & Musical Roots
+      { day_number: 6, name: 'Panchganga & Scindia Ghats Ancient Alleys Exploration', category: 'Sightseeing', cost: 200, time_slot: '09:00', desc: 'Discover quiet northern ghats, the tilted Shiva Temple sinking into the riverbed, and serene alleys.' },
+      { day_number: 6, name: 'Classical Indian Sitar & Tabla Music Heritage Session', category: 'Culture', cost: 500, time_slot: '14:30', desc: 'Experience the world-renowned Banaras Gharana musical tradition in an intimate cultural music school.' },
+      { day_number: 6, name: 'Rajghat Riverbank Stroll & Sunset Kulhad Chai', category: 'Relaxation', cost: 100, time_slot: '17:30', desc: 'Peaceful sunset walk along the wide northern banks with freshly brewed spiced clay-cup tea.' },
+      // Day 7: Chunar Fort & Farewell
+      { day_number: 7, name: 'Chunar Fort Day Excursion Overlooking the Holy Ganges', category: 'Adventure', cost: 800, time_slot: '08:30', desc: 'Excursion to the historic medieval fortress of Sher Shah Suri perched atop sandstone cliffs over the river.' },
+      { day_number: 7, name: 'Kabir Chaura Math Mystical Heritage Hermitage', category: 'Culture', cost: 150, time_slot: '15:00', desc: 'Visit the 15th-century spiritual retreat and memorial of saint-poet Sant Kabir Das.' },
+      { day_number: 7, name: 'Farewell Riverside Rooftop Dining Overlooking Illuminated Ghats', category: 'Food', cost: 900, time_slot: '19:30', desc: 'Celebrate the journey with a multi-course royal thali dinner with night panoramic views of illuminated ghats.' }
+    ];
+    activities = varanasiPool.filter(a => a.day_number <= requestedDays);
+  } else if (isUjjain) {
     const ujjainPool = [
       // Day 1
       { day_number: 1, name: 'Mahakaleshwar Jyotirlinga Darshan & Sacred Bhasma Aarti', category: 'Culture', cost: 250, time_slot: '06:00', desc: 'Visit one of the 12 sacred Jyotirlingas of Lord Shiva for early morning prayers.' },
@@ -285,7 +335,7 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     ];
     activities = kashmirPool.filter(a => a.day_number <= requestedDays);
   } else {
-    // Universal Rich Fallback Generator: Unique INR Activities for EVERY Day
+    // Universal Rich Fallback Generator: Unique Activities Grounded in Reality for EVERY Day
     const dayTemplates = [
       // Day 1
       [
@@ -295,20 +345,20 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
       ],
       // Day 2
       [
-        { name: `${mainLocation} Sacred Temples & Sanctuary Trail`, category: 'Culture', cost: 400, time_slot: '09:00', desc: `Visit famous spiritual shrines, carved stone temples, and peaceful gardens in ${mainLocation}.` },
-        { name: `${mainLocation} Panoramic Hilltop Viewpoint & Nature Hike`, category: 'Adventure', cost: 600, time_slot: '14:00', desc: `Hike to high elevation viewpoints offering panoramic city and valley vistas.` },
+        { name: `${mainLocation} Sacred Temples & Historic Shrines Trail`, category: 'Culture', cost: 400, time_slot: '09:00', desc: `Visit famous spiritual shrines, carved stone architecture, and serene courtyards in ${mainLocation}.` },
+        { name: `${mainLocation} Historic Architecture & Central Promenade Walk`, category: 'Sightseeing', cost: 250, time_slot: '14:00', desc: `Explore famous city squares, pedestrian avenues, and historic architecture across ${mainLocation}.` },
         { name: `${mainLocation} Night Bazaar & Traditional Performance Evening`, category: 'Nightlife', cost: 800, time_slot: '19:30', desc: `Experience vibrant evening bazaars, live traditional music, and light shows in ${mainLocation}.` }
       ],
       // Day 3
       [
-        { name: `${mainLocation} Science Observatory & Art Heritage Museum`, category: 'Sightseeing', cost: 300, time_slot: '10:00', desc: `Discover historic astronomical instruments, art galleries, and regional artifacts in ${mainLocation}.` },
-        { name: `${mainLocation} Artisan Craft & Handloom Souvenir Trail`, category: 'Culture', cost: 700, time_slot: '14:30', desc: `Learn local handicraft traditions and browse handmade silk, woodwork, and jewelry.` },
-        { name: `${mainLocation} Gourmet Fine Dining & Starlight Dinner`, category: 'Food', cost: 1200, time_slot: '20:00', desc: `Gourmet dinner featuring authentic multi-course regional recipes.` }
+        { name: `${mainLocation} Cultural Heritage & Local History Museum`, category: 'Culture', cost: 300, time_slot: '10:00', desc: `Discover regional art, archaeology, and historical artifacts in ${mainLocation}.` },
+        { name: `${mainLocation} Artisan Craft & Handloom Souvenir Trail`, category: 'Culture', cost: 700, time_slot: '14:30', desc: `Learn local handicraft traditions and browse handmade textiles, woodwork, and jewelry.` },
+        { name: `${mainLocation} Gourmet Local Dining & Evening Tasting`, category: 'Food', cost: 1200, time_slot: '20:00', desc: `Evening dinner featuring authentic multi-course regional recipes.` }
       ],
       // Day 4
       [
-        { name: `${mainLocation} Botanical Gardens & Serene Nature Reserve Walk`, category: 'Relaxation', cost: 250, time_slot: '09:30', desc: `Stroll through lush terraced gardens, lotus ponds, and ancient tree groves.` },
-        { name: `${mainLocation} Interactive Pottery & Local Workshop Experience`, category: 'Culture', cost: 600, time_slot: '14:00', desc: `Hands-on workshop with traditional master artisans in ${mainLocation}.` },
+        { name: `${mainLocation} Public Gardens & Riverfront Promenade`, category: 'Relaxation', cost: 150, time_slot: '09:30', desc: `Stroll through peaceful public gardens and scenic waterfront walkways in ${mainLocation}.` },
+        { name: `${mainLocation} Interactive Craft & Traditional Workshop Experience`, category: 'Culture', cost: 600, time_slot: '14:00', desc: `Hands-on workshop with traditional master artisans in ${mainLocation}.` },
         { name: `${mainLocation} Illuminated City Night Tour & Fountain Promenade`, category: 'Sightseeing', cost: 400, time_slot: '19:00', desc: `Marvel at lit-up monuments and nighttime architectural illumination.` }
       ]
     ];
@@ -335,9 +385,10 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     cost: a.cost,
     duration_min: 120,
     description: a.desc || a.description || '',
-    image_url: a.img || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
+    image_url: a.img || a.image_url || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb',
     day_number: a.day_number,
-    time_slot: a.time_slot
+    time_slot: a.time_slot,
+    currency: isVaranasi || isUjjain || isKashmir ? 'INR' : 'INR'
   }));
 
   const cityList = mainLocation
@@ -348,7 +399,21 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const distinctCities = cityList.length > 0 ? cityList : [mainLocation];
   const daysPerCity = Math.max(1, Math.floor(requestedDays / distinctCities.length));
 
-  const stops = isUjjain
+  const stops = isVaranasi
+    ? [
+        {
+          city_name: 'Varanasi',
+          country: 'India',
+          cost_index: 2,
+          popularity: 98,
+          city_image_url: 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?auto=format&fit=crop&w=800&q=80',
+          duration_days: requestedDays,
+          day_start: 1,
+          day_end: requestedDays,
+          activities: formattedActivities
+        }
+      ]
+    : isUjjain
     ? [
         {
           city_name: 'Ujjain',
@@ -395,16 +460,56 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
         };
       });
 
+  const coverPhoto = isVaranasi
+    ? 'https://images.unsplash.com/photo-1561361513-2d000a50f0dc?auto=format&fit=crop&w=1200&q=80'
+    : isUjjain
+    ? 'https://images.unsplash.com/photo-1609946727292-c94318c5e638?auto=format&fit=crop&w=1200&q=80'
+    : isKashmir
+    ? 'https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=1200&q=80'
+    : 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80';
+
   return {
     name: `${requestedDays}-Day ${mainLocation} Expedition`,
     description: `A rich ${requestedDays}-day travel itinerary exploring iconic landmarks, local food, and cultural highlights in ${mainLocation}.`,
-    cover_photo: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80',
+    cover_photo: coverPhoto,
+    currency: isVaranasi || isUjjain || isKashmir ? 'INR' : 'USD',
     stops
   };
 }
 
 function getFallbackRecommendations(cityName: string, budgetLevel: string): ActivityRecommendationResponse {
   const isBudget = budgetLevel.toLowerCase().includes('shoestring') || budgetLevel.toLowerCase().includes('budget');
+  const lower = cityName.toLowerCase();
+  const isVaranasi = lower.includes('varanasi') || lower.includes('banaras') || lower.includes('kashi');
+
+  if (isVaranasi) {
+    return {
+      recommendations: [
+        {
+          name: 'Assi to Dashashwamedh Ghat Morning Boat Ride',
+          category: 'Culture',
+          cost: isBudget ? 200 : 500,
+          duration_min: 90,
+          reason: 'Witness sunrise rituals and ancient riverfront ghats bathed in golden morning light.'
+        },
+        {
+          name: 'Kashi Vishwanath Corridor & Local Temple Walk',
+          category: 'Sightseeing',
+          cost: isBudget ? 0 : 250,
+          duration_min: 120,
+          reason: 'Explore the holy Jyotirlinga shrine and ancient alleyways of old Kashi.'
+        },
+        {
+          name: 'Godowlia Chowk Malaiyyo & Kachori Tasting Trail',
+          category: 'Food',
+          cost: isBudget ? 150 : 350,
+          duration_min: 60,
+          reason: 'Sample authentic Varanasi street delicacies including winter malaiyyo and piping hot kachoris.'
+        }
+      ]
+    };
+  }
+
   return {
     recommendations: [
       {

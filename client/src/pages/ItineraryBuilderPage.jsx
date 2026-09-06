@@ -287,9 +287,21 @@ export default function ItineraryBuilderPage() {
                 const stopName = stop.city_name || stop.cities?.name || `Stop ${idx + 1}`;
                 const stopCountry = stop.country || stop.cities?.country || '';
 
-                // Group activities by Day number
+                // Determine max allowed days for this stop/trip
+                const stopDays = (stop.start_date && stop.end_date)
+                  ? Math.max(1, Math.round((new Date(stop.end_date) - new Date(stop.start_date)) / (1000 * 60 * 60 * 24)) + 1)
+                  : (trip?.start_date && trip?.end_date)
+                  ? Math.max(1, Math.round((new Date(trip.end_date) - new Date(trip.start_date)) / (1000 * 60 * 60 * 24)))
+                  : 7;
+
+                const tripTitleDaysMatch = (trip?.name || '').match(/(\d+)\s*-?\s*day/i);
+                const maxDays = tripTitleDaysMatch ? parseInt(tripTitleDaysMatch[1], 10) : Math.max(1, stopDays);
+
+                // Group activities by Day number with strict clamping to maxDays
+                const actsPerDay = Math.max(1, Math.ceil(activities.length / maxDays));
                 const groupedByDay = activities.reduce((acc, act, actIdx) => {
-                  const dayNum = act.day_number || (Math.floor(actIdx / 2) + 1);
+                  const fallbackDay = Math.floor(actIdx / actsPerDay) + 1;
+                  const dayNum = Math.min(maxDays, Math.max(1, act.day_number || fallbackDay));
                   if (!acc[dayNum]) acc[dayNum] = [];
                   acc[dayNum].push(act);
                   return acc;

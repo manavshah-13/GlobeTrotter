@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { ItineraryResponse } from "../types/ai-schemas.js";
+import { isIndianDestination } from "./geminiService.js";
 
 const supabaseUrl = process.env.SUPABASE_URL || "https://mock.supabase.co";
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || "mock-key";
@@ -7,6 +8,32 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.
 const _supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 const isMock = !process.env.SUPABASE_URL;
+
+export function sanitizeAndNormalizeActivityCost(
+  rawCost: number | undefined | null,
+  isIndia: boolean,
+  currency?: string
+): number {
+  let cost = Number(rawCost) || 0;
+  if (cost < 0) cost = 0;
+
+  const isINR = currency === 'INR' || (isIndia && cost > 50);
+
+  if (isINR) {
+    // Sanitize any extreme outlier spikes in domestic activities
+    if (cost > 5000) {
+      cost = 2500;
+    }
+    // Normalize INR to base USD (CurrencyContext rate: 83.5)
+    return Math.round((cost / 83.5) * 100) / 100;
+  }
+
+  // Already USD
+  if (cost > 500) {
+    cost = 150;
+  }
+  return Math.round(cost * 100) / 100;
+}
 
 export function toValidUUID(id: string): string | null {
   if (!id) return null;
@@ -51,7 +78,9 @@ export async function insertFullItinerary(
   }
 
   const startDate = startDateStr ? new Date(startDateStr) : new Date();
-  const totalDays = parsed.trip?.total_days || (parsed.stops || []).reduce((acc: number, s: any) => acc + (s.duration_days || 1), 0) || 3;
+  const dayMatch = (parsed.trip?.name || parsed.name || "").match(/(\d+)\s*-?\s*day/i);
+  const parsedDays = dayMatch ? parseInt(dayMatch[1], 10) : null;
+  const totalDays = parsedDays || parsed.trip?.total_days || (parsed.stops || []).reduce((acc: number, s: any) => acc + (s.duration_days || 1), 0) || 4;
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + totalDays);
 
@@ -129,8 +158,10 @@ export async function insertFullItinerary(
     if (stopErr || !stopData) continue;
 
     // 3. Insert Activities & Link to Trip Stop
+    const isIndia = isIndianDestination(parsed.name) || isIndianDestination(stop.city_name) || stop.country === 'India';
     for (let i = 0; i < (stop.activities || []).length; i++) {
       const act = stop.activities[i];
+      const normalizedCost = sanitizeAndNormalizeActivityCost(act.cost, isIndia, act.currency || parsed.currency);
 
       // Catalog Activity Insert
       const { data: actData } = await supabase
@@ -139,7 +170,7 @@ export async function insertFullItinerary(
           city_id: city?.id,
           name: act.name,
           category: (act.category || "activity").toLowerCase(),
-          cost: act.cost || 0,
+          cost: normalizedCost,
           duration_minutes: act.duration_min || 60,
           description: act.description || "",
         })
@@ -152,8 +183,9 @@ export async function insertFullItinerary(
         activity_id: actData?.id || null,
         custom_name: act.name,
         category: (act.category || "activity").toLowerCase(),
-        cost: act.cost || 0,
+        cost: normalizedCost,
         order_index: i,
+        scheduled_time: act.time_slot || "10:00",
       });
     }
   }

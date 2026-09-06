@@ -3,11 +3,13 @@ import {
   generateItineraryWithAI,
   recommendActivitiesWithAI,
   estimateBudgetWithAI,
-  generateAdminInsightWithAI
+  generateAdminInsightWithAI,
+  isIndianDestination
 } from '../services/geminiService.js';
 import {
   insertFullItinerary,
-  fetchRecentTripsSummary
+  fetchRecentTripsSummary,
+  sanitizeAndNormalizeActivityCost
 } from '../services/supabaseService.js';
 import { memoryTrips } from './backendController.js';
 
@@ -40,13 +42,16 @@ export async function generateItineraryHandler(req: Request, res: Response): Pro
 
     const tripId = dbResult?.trip_id || `ai-trip-${Date.now()}`;
     const startStr = start_date || new Date().toISOString().split("T")[0];
-    const totalDays = aiPlan.trip?.total_days || (aiPlan.stops || []).reduce((acc, s) => acc + (s.duration_days || 1), 0) || 5;
+    const dayMatch = (prompt || '').match(/(\d+)\s*-?\s*day/i) || (aiPlan.name || '').match(/(\d+)\s*-?\s*day/i);
+    const parsedDays = dayMatch ? parseInt(dayMatch[1], 10) : null;
+    const totalDays = parsedDays || aiPlan.trip?.total_days || (aiPlan.stops || []).reduce((acc, s) => acc + (s.duration_days || 1), 0) || 4;
     const endDate = new Date(startStr);
     endDate.setDate(endDate.getDate() + totalDays);
 
     const tripName = aiPlan.trip?.name || aiPlan.name || "AI Generated Trip";
     const tripDesc = aiPlan.trip?.description || aiPlan.description || "Custom AI trip itinerary";
     const coverPhoto = aiPlan.trip?.cover_photo_url || aiPlan.cover_photo || "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80";
+    const isIndia = isIndianDestination(prompt) || isIndianDestination(aiPlan.name);
 
     const formattedTrip = {
       id: tripId,
@@ -58,25 +63,38 @@ export async function generateItineraryHandler(req: Request, res: Response): Pro
       cover_photo_url: coverPhoto,
       is_public: true,
       public_slug: `${tripName.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now().toString(36)}`,
-      stops: (aiPlan.stops || []).map((s, idx) => ({
-        id: `stop-${idx + 1}-${Date.now()}`,
-        trip_id: tripId,
-        order_index: s.order_index ?? idx,
-        city_name: s.city_name,
-        country: s.country || "Global",
-        start_date: startStr,
-        end_date: endDate.toISOString().split("T")[0],
-        cities: { name: s.city_name, country: s.country || "Global" },
-        trip_activities: (s.activities || []).map((a, aIdx) => ({
-          id: `act-${idx}-${aIdx}-${Date.now()}`,
-          custom_name: a.name,
-          category: (a.category || "activity").toLowerCase(),
-          cost: a.cost || 0,
-          order_index: aIdx,
-          scheduled_time: a.time_slot || "10:00",
-          description: a.description
-        }))
-      }))
+      stops: (aiPlan.stops || []).map((s, idx) => {
+        const stopIsIndia = isIndia || isIndianDestination(s.city_name) || s.country === 'India';
+        const stopActs = s.activities || [];
+        const actsPerDay = Math.max(1, Math.ceil(stopActs.length / totalDays));
+
+        return {
+          id: `stop-${idx + 1}-${Date.now()}`,
+          trip_id: tripId,
+          order_index: s.order_index ?? idx,
+          city_name: s.city_name,
+          country: s.country || (stopIsIndia ? "India" : "Global"),
+          start_date: startStr,
+          end_date: endDate.toISOString().split("T")[0],
+          cities: { name: s.city_name, country: s.country || (stopIsIndia ? "India" : "Global") },
+          trip_activities: stopActs.map((a, aIdx) => {
+            const fallbackDay = Math.floor(aIdx / actsPerDay) + 1;
+            const clampedDay = Math.min(totalDays, Math.max(1, a.day_number || fallbackDay));
+            const normCost = sanitizeAndNormalizeActivityCost(a.cost, stopIsIndia, a.currency || aiPlan.currency);
+
+            return {
+              id: `act-${idx}-${aIdx}-${Date.now()}`,
+              custom_name: a.name,
+              category: (a.category || "activity").toLowerCase(),
+              cost: normCost,
+              order_index: aIdx,
+              scheduled_time: a.time_slot || "10:00",
+              description: a.description,
+              day_number: clampedDay
+            };
+          })
+        };
+      })
     };
 
     memoryTrips.set(tripId, formattedTrip);

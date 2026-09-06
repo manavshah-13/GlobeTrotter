@@ -45,6 +45,11 @@ const SCENARIOS = [
     name: 'Scenario 4: Vague prompt',
     prompt: 'A 4-day culinary trip in Italy',
     startDate: undefined
+  },
+  {
+    name: 'Scenario 5: 7-day Varanasi pilgrimage & heritage trip',
+    prompt: 'Plan a 7-day Varanasi trip on a moderate budget',
+    startDate: '2026-09-17'
   }
 ];
 
@@ -69,12 +74,59 @@ async function runTestSuite() {
       const dbResult = await insertFullItinerary(plan, `test-user-${i + 1}`, sc.startDate);
 
       const latencyMs = Date.now() - startTime;
-      const totalActivities = (dbResult.stops || []).reduce((acc: number, s: any) => acc + (s.activities?.length || 0), 0);
+      const allActivities: any[] = (plan.stops || []).flatMap((s: any) => s.activities || []);
+      const totalActivities = allActivities.length;
 
       console.log(`  ✅ Success! Trip ID: ${dbResult.trip_id}`);
       console.log(`  ⏱️  Latency: ${latencyMs} ms (Target < 5000 ms: ${latencyMs < 5000 ? 'PASSED ⚡' : 'WARN 🐢'})`);
-      console.log(`  📍 Stops: ${dbResult.stops.length} cities | 🎡 Total Activities: ${totalActivities}`);
-      console.log(`  🏙️  Cities count: ${dbResult.stops.length}`);
+      console.log(`  📍 Stops: ${plan.stops.length} cities | 🎡 Total Activities: ${totalActivities}`);
+
+      // Special deep validation for Varanasi trip (Scenario 5)
+      if (sc.prompt.toLowerCase().includes('varanasi')) {
+        console.log('\n  🔍 --- VARANASI DIAGNOSTIC VERIFICATION ---');
+        const dayNumbers = allActivities.map(a => a.day_number || 1);
+        const minDay = Math.min(...dayNumbers);
+        const maxDay = Math.max(...dayNumbers);
+        const dayOverflow = maxDay > 7 || minDay < 1;
+        console.log(`  📅 Day Numbers Range: Day ${minDay} to Day ${maxDay} (Overflow > 7: ${dayOverflow ? 'FAILED ❌' : 'PASSED ✅'})`);
+
+        const INR_RATE = 83.5;
+        let totalActivityCostINR = 0;
+        let totalActivityCostUSD = 0;
+
+        console.log('  📋 Sample Activities & Costs:');
+        allActivities.slice(0, 9).forEach((a, idx) => {
+          const rawCost = Number(a.cost) || 0;
+          // In Gemini output, cost is INR if prompt was Indian
+          const costINR = a.currency === 'USD' ? Math.round(rawCost * INR_RATE) : Math.round(rawCost);
+          const costUSD = a.currency === 'USD' ? rawCost : Math.round((rawCost / INR_RATE) * 100) / 100;
+          totalActivityCostINR += costINR;
+          totalActivityCostUSD += costUSD;
+          console.log(`     Day ${a.day_number || '?'}: "${a.name}" — USD $${costUSD} (~₹${costINR}) [${a.category}]`);
+        });
+
+        // Sum remaining activities for total
+        allActivities.slice(9).forEach(a => {
+          const rawCost = Number(a.cost) || 0;
+          const costINR = a.currency === 'USD' ? Math.round(rawCost * INR_RATE) : Math.round(rawCost);
+          const costUSD = a.currency === 'USD' ? rawCost : Math.round((rawCost / INR_RATE) * 100) / 100;
+          totalActivityCostINR += costINR;
+          totalActivityCostUSD += costUSD;
+        });
+
+        console.log(`  💰 Total 7-day Activity Cost: ~₹${totalActivityCostINR.toLocaleString('en-IN')} ($${totalActivityCostUSD.toFixed(2)} USD)`);
+        const costSensible = totalActivityCostINR >= 2000 && totalActivityCostINR <= 35000;
+        console.log(`  💵 Activity Cost Realistic (₹2,000–₹35,000 range): ${costSensible ? 'PASSED ✅' : 'FAILED ❌'}`);
+
+        // Geographic landmark verification
+        const titles = allActivities.map(a => (a.name || '').toLowerCase()).join(' ');
+        const hasVaranasiLandmarks = /ghat|kashi|vishwanath|aarti|sarnath|ganga|ramnagar|mandir|temple|lassi/i.test(titles);
+        const hasHallucinatedHikes = /mountain hike|hilltop viewpoint|cable car|glacier|alp/i.test(titles);
+        console.log(`  🏛️  Authentic Varanasi Landmarks Grounding: ${hasVaranasiLandmarks ? 'PASSED ✅' : 'FAILED ❌'}`);
+        console.log(`  🚫 No Hallucinated Mountain/Hike Geography: ${!hasHallucinatedHikes ? 'PASSED ✅' : 'FAILED ❌'}`);
+        console.log('  -------------------------------------------\n');
+      }
+
       console.log('---------------------------------------------------------------');
 
       results.push({
@@ -83,7 +135,7 @@ async function runTestSuite() {
         latencyMs,
         success: true,
         tripId: dbResult.trip_id,
-        stopCount: dbResult.stops.length,
+        stopCount: plan.stops.length,
         activitiesCount: totalActivities
       });
     } catch (err) {

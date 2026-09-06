@@ -16,6 +16,7 @@ export interface GeneratedActivity {
   image_url?: string;
   day_number?: number;
   time_slot?: string; // "Morning", "Afternoon", "Evening"
+  currency?: string;
 }
 
 export interface GeneratedStop {
@@ -35,6 +36,7 @@ export interface GeneratedTripPlan {
   name: string;
   description: string;
   cover_photo?: string;
+  currency?: string;
   stops: GeneratedStop[];
   trip?: {
     name?: string;
@@ -53,6 +55,7 @@ export const ITINERARY_JSON_SCHEMA = {
     name: { type: "string", description: "Catchy title for the trip" },
     description: { type: "string", description: "Brief summary of the trip itinerary" },
     cover_photo: { type: "string", description: "Unsplash image URL representing the primary destination" },
+    currency: { type: "string", description: "Base currency used for costs: 'USD' or 'INR'" },
     stops: {
       type: "array",
       description: "Ordered array of city stops",
@@ -73,7 +76,8 @@ export const ITINERARY_JSON_SCHEMA = {
               properties: {
                 name: { type: "string", description: "Activity title" },
                 category: { type: "string", description: "Category: Sightseeing, Food, Culture, Adventure, Relaxation, Nightlife" },
-                cost: { type: "number", description: "Estimated cost in USD" },
+                cost: { type: "number", description: "Estimated cost (in USD for international or INR for Indian destinations)" },
+                currency: { type: "string", description: "Currency code: 'USD' or 'INR'" },
                 duration_min: { type: "integer", description: "Duration in minutes" },
                 description: { type: "string", description: "Short activity description" },
                 image_url: { type: "string", description: "Relevant activity image URL" },
