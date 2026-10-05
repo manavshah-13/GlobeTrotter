@@ -43,8 +43,7 @@ import {
   parseIntentHandler,
   travelTimingHandler,
   comprehensiveBudgetHandler,
-  transportSearchHandler,
-  googleAuthHandler
+  transportSearchHandler
 } from "./controllers/travelController.js";
 
 dotenv.config();
@@ -65,7 +64,6 @@ apiRouter.get("/health", (req, res) => {
 // --- Authentication Endpoints ---
 apiRouter.post("/auth/register", registerHandler);
 apiRouter.post("/auth/login", loginHandler);
-apiRouter.post("/auth/google", googleAuthHandler);
 apiRouter.get("/auth/me", requireAuth, getMeHandler);
 
 // --- General AI Travel Assistant Endpoint (Intent-Aware & Catalog Grounded) ---

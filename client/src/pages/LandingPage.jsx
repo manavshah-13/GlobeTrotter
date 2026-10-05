@@ -574,7 +574,7 @@ export default function LandingPage() {
               Ready for your next waypoint?
             </h2>
             <p className="text-slate text-sm sm:text-base">
-              Create your account with Google or email, specify your travel style, and let GlobeTrotter handle the logistics.
+              Create your account in seconds, specify your travel style, and let GlobeTrotter handle the logistics.
             </p>
             <div className="flex flex-wrap gap-4 justify-center pt-2">
               <Link

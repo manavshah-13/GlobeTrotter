@@ -147,56 +147,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const loginWithGoogle = async (googleProfile = {}) => {
-    try {
-      const email = googleProfile.email || 'traveler.google@globetrotter.io';
-      const name = googleProfile.name || 'Google Explorer';
-      const avatar = googleProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80';
-
-      const res = await fetchApi('/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({
-          email,
-          name,
-          avatar,
-          city: googleProfile.city || 'Ahmedabad',
-          country: googleProfile.country || 'India',
-          travel_style: googleProfile.travel_style || ['Cultural', 'Adventure'],
-          budget_tier: googleProfile.budget_tier || 'Moderate',
-          preferences: googleProfile.preferences || ['Beaches', 'Food']
-        })
-      });
-
-      if (res?.token && res?.user) {
-        setToken(res.token);
-        setUser(res.user);
-        localStorage.setItem('globetrotter_token', res.token);
-        localStorage.setItem('globetrotter_user', JSON.stringify(res.user));
-        return res.user;
-      }
-    } catch (_) {
-      // Local fallback for offline mode
-      const mockUser = {
-        id: `user-google-${Date.now()}`,
-        email: googleProfile.email || 'explorer.google@globetrotter.io',
-        name: googleProfile.name || 'Google Traveler',
-        avatar: 'G',
-        city: googleProfile.city || 'Ahmedabad',
-        country: googleProfile.country || 'India',
-        role: 'traveler',
-        travel_style: googleProfile.travel_style || ['Cultural', 'Adventure'],
-        budget_tier: googleProfile.budget_tier || 'Moderate',
-        created_at: new Date().toISOString()
-      };
-      const mockToken = `google-token-${Date.now()}`;
-      setToken(mockToken);
-      setUser(mockUser);
-      localStorage.setItem('globetrotter_token', mockToken);
-      localStorage.setItem('globetrotter_user', JSON.stringify(mockUser));
-      return mockUser;
-    }
-  };
-
   const updateUserPreferences = (preferences) => {
     setUser(prev => {
       const updated = { ...prev, ...preferences };
@@ -221,7 +171,6 @@ export function AuthProvider({ children }) {
       isAuthenticated,
       login,
       signup,
-      loginWithGoogle,
       updateUserPreferences,
       logout,
       loadingInitial

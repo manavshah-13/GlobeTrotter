@@ -203,10 +203,3 @@ export async function searchTransportApi({ origin, destination, date, passengers
   return fetchApi(`/transport/search?${query}`);
 }
 
-export async function googleLoginApi(userData) {
-  return fetchApi('/auth/google', {
-    method: 'POST',
-    body: JSON.stringify(userData),
-  });
-}
-

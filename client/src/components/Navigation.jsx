@@ -33,8 +33,12 @@ export function SidebarNav() {
   return (
     <nav className="h-screen sticky top-0 left-0 w-64 flex-shrink-0 border-r border-slate bg-paper flex flex-col p-stack-lg gap-stack-md z-10 hidden lg:flex">
       <div className="flex items-center gap-stack-sm mb-4">
-        <div className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center border border-slate font-bold text-primary text-sm">
-          {user?.avatar || 'GT'}
+        <div className="w-10 h-10 bg-surface-container-highest rounded-full flex items-center justify-center border border-slate font-bold text-primary text-sm overflow-hidden flex-shrink-0">
+          {user?.avatar && (user.avatar.startsWith('http') || user.avatar.startsWith('data:')) ? (
+            <img src={user.avatar} alt={user.name || 'Avatar'} className="w-full h-full object-cover" />
+          ) : (
+            <span>{user?.avatar || (user?.name ? user.name.slice(0, 2).toUpperCase() : 'GT')}</span>
+          )}
         </div>
         <div className="min-w-0">
           <h2 className="font-headline-sm text-sm font-bold text-primary truncate">{user?.name || 'GlobeTrotter'}</h2>

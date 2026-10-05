@@ -5,12 +5,7 @@ import {
   getComprehensiveBudget,
   searchTransportationService
 } from '../services/travelService.js';
-import {
-  findUserByEmail,
-  createUser,
-  generateToken,
-  UserPayload
-} from '../services/authService.js';
+
 import { handleAIAssistantQuestion } from '../services/aiAssistantService.js';
 
 // General AI Travel Assistant Endpoint
@@ -114,54 +109,3 @@ export async function transportSearchHandler(req: Request, res: Response): Promi
   }
 }
 
-// 5. One-Click Google Authentication Handler
-export async function googleAuthHandler(req: Request, res: Response): Promise<void> {
-  try {
-    const { email, name, avatar, city, country, travel_style, budget_tier, preferences } = req.body || {};
-    if (!email || !email.includes('@')) {
-      res.status(400).json({ error: 'Valid Google email is required.' });
-      return;
-    }
-
-    const cleanEmail = email.toLowerCase().trim();
-    let user = await findUserByEmail(cleanEmail);
-
-    if (!user) {
-      user = await createUser({
-        email: cleanEmail,
-        password: `google_oauth_${Date.now()}`,
-        name: name || cleanEmail.split('@')[0],
-        city: city || 'Ahmedabad',
-        country: country || 'India',
-        role: 'traveler'
-      });
-    }
-
-    const userPayload: UserPayload = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      city: user.city,
-      country: user.country,
-      avatar: avatar || user.avatar || user.name.slice(0, 2).toUpperCase(),
-      created_at: user.created_at
-    };
-
-    const token = generateToken(userPayload);
-
-    res.status(200).json({
-      success: true,
-      user: {
-        ...userPayload,
-        travel_style: travel_style || ['Balanced', 'Cultural'],
-        budget_tier: budget_tier || 'Moderate',
-        preferences: preferences || ['Sightseeing', 'Food']
-      },
-      token
-    });
-  } catch (error) {
-    console.error('[travelController] Error in googleAuthHandler:', error);
-    res.status(500).json({ error: 'Google authentication failed', message: (error as Error).message });
-  }
-}
