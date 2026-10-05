@@ -125,6 +125,17 @@ npm run dev
 
 ---
 
-## 📄 License
+## Contributing and Community
 
-Distributed under the **MIT License**. Created with ❤️ by the **GlobeTrotter Team**.
+We welcome contributions from both human developers and AI coding agents.
+
+- **Contribution Guidelines**: Check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started with setup, branch workflows, and PR formats.
+- **Code of Conduct**: Review our community pledge in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+- **AI Agent Guidelines**: For autonomous and pair-programming AI assistants, read [AGENTS.md](AGENTS.md).
+- **Security Policy**: Read [SECURITY.md](SECURITY.md) for responsible vulnerability disclosure.
+
+---
+
+## License
+
+Distributed under the **MIT License**. Created by the **GlobeTrotter Team**.

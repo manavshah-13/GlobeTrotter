@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Community Discussions
+    url: https://github.com/manavshah-13/GlobeTrotter/discussions
+    about: Ask questions, share trip ideas, and discuss with the community.
+  - name: Report a Security Vulnerability
+    url: https://github.com/manavshah-13/GlobeTrotter/security/policy
+    about: Report sensitive vulnerabilities responsibly according to SECURITY.md.
