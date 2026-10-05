@@ -10,11 +10,12 @@ import {
   AdminInsightResponse,
   ADMIN_INSIGHT_JSON_SCHEMA
 } from '../types/ai-schemas.js';
+import { getDestinationProfile } from './destinationCatalog.js';
 
 dotenv.config();
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 
 export function isIndianDestination(text: string): boolean {
   if (!text) return false;
@@ -45,58 +46,25 @@ export function formatLocationTitle(str: string): string {
     .join(' ');
 }
 
+import { classifyTravelIntentAndEntities } from './intentClassifier.js';
+
 export function extractDestinationName(rawPrompt: string): string {
   if (!rawPrompt || typeof rawPrompt !== 'string') return 'Travel Destination';
 
-  // 1. Remove parenthesized travel style/metadata: e.g. "(Travel style: balanced)"
+  // Use the high-precision intent and entity classifier
+  const entities = classifyTravelIntentAndEntities(rawPrompt);
+  if (entities.destination) {
+    return entities.destination;
+  }
+
+  // Fallback cleanup
   let cleaned = rawPrompt.replace(/\s*\(\s*travel\s*style\s*:[^)]*\)/gi, '').trim();
-
-  // If the prompt is already a concise destination (e.g. "Tokyo", "Paris", "Ujjain", "Tokyo, Kyoto", "Rome & Florence")
-  const isPlainLocation = !/\b(day|days|trip|tour|vacation|itinerary|adventure|expedition|guide|explore|exploring|retreat|getaway|holiday|backpacking|budget|flight|hotel|plan|planning)\b/i.test(cleaned);
-  if (isPlainLocation) {
-    const formatted = cleaned.replace(/[^A-Za-z\s,\.\-&']/g, ' ').replace(/\s+/g, ' ').trim();
-    if (formatted.length >= 2) {
-      return formatLocationTitle(formatted);
-    }
+  const prepMatch = cleaned.match(/\b(?:in|into|to|across|through|exploring|around|visit|visiting)\s+([A-Za-z\s]+?)(?:\s+(?:for|with|during|from|\d|\?|$)|$|\?)/i);
+  if (prepMatch && prepMatch[1]) {
+    return formatLocationTitle(prepMatch[1].trim());
   }
 
-  // 2. Remove any remaining parenthesized text (e.g. details)
-  const textWithoutParens = cleaned.replace(/\s*\([^)]*\)/g, '').trim();
-
-  // 3. Prepositional extraction patterns:
-  // e.g. "in Tokyo and Kyoto with...", "across the Swiss Alps", "through Naples, Positano, and Capri", "exploration of Rome, Florence, and Venice", "trip to Paris", "backpacking Thailand"
-  const prepPatterns = [
-    /\b(?:in|into|to|across|through|exploring|around|visit|visiting|of|backpacking)\s+([A-Za-z\s,&'\-]+?)(?:\s+(?:with|for|on|focusing|featuring|during|and\s+its|style|budget)\b|[,\.\(\]]|$)/i,
-    /\b(?:trip|tour|vacation|expedition|getaway|holiday|retreat)\s+(?:in|to|through|across|around|of)\s+([A-Za-z\s,&'\-]+?)(?:\s+(?:with|for|on|focusing|featuring|during)\b|[,\.\(\]]|$)/i
-  ];
-
-  for (const pattern of prepPatterns) {
-    const match = (textWithoutParens || cleaned).match(pattern);
-    if (match && match[1]) {
-      let dest = match[1].trim();
-      dest = dest.replace(/^the\s+/i, '').trim();
-      dest = dest.replace(/\b(on|with|for|and|a|an|the)\b$/i, '').trim();
-      if (dest.length >= 2) {
-        return formatLocationTitle(dest);
-      }
-    }
-  }
-
-  // 4. Fallback: Strip known filler words using WORD BOUNDARIES (\b...\b) so letters inside names are NEVER stripped
-  const text = (textWithoutParens || cleaned)
-    .replace(/\b\d+\s*-?\s*days?\b/gi, ' ')
-    .replace(/\b(plan|planning|suggest|create|build|generate|make|organize)\b/gi, ' ')
-    .replace(/\b(travel|style|balanced|moderate|shoestring|budget|luxury|expedition|trip|planner|adventure|vacation|tour|culinary|food|culture|scenic|hiking|retreat|exploration|historical|coastal|road|getaway|backpacking|holiday|flight|hotel|tourist|visiting|visit|explore|exploring)\b/gi, ' ')
-    .replace(/\b(in|into|to|for|on|a|an|the|with|across|through|of|and|its|or)\b/gi, ' ')
-    .replace(/[^a-zA-Z\s\-&']/g, ' ')
-    .trim();
-
-  const words = text.split(/\s+/).filter(w => w.length > 1);
-  if (words.length > 0) {
-    return formatLocationTitle(words.slice(0, 4).join(' '));
-  }
-
-  return 'Travel Destination';
+  return formatLocationTitle(cleaned.slice(0, 30));
 }
 
 function cleanLocationName(rawPrompt: string): string {
@@ -172,15 +140,27 @@ async function callGeminiStructuredAI<T>(
 export async function generateItineraryWithAI(prompt: string, startDate?: string): Promise<GeneratedTripPlan> {
   const destination = cleanLocationName(prompt);
   const isIndia = isIndianDestination(destination) || isIndianDestination(prompt);
+  const profile = getDestinationProfile(destination);
+
+  let groundingContext = '';
+  if (profile) {
+    groundingContext = `
+Verified/known destination context:
+- Destination: ${profile.cityName}, ${profile.country}
+- Known Landmarks & Areas: ${profile.keyPlaces?.map(p => `${p.name} (${p.area})`).join(', ') || ''}
+- Known Authentic Activities: ${profile.activities?.map(a => `${a.name} (${a.category})`).slice(0, 8).join(', ') || ''}
+CRITICAL REQUIREMENT: Ground your itinerary strictly in these authentic, real-world landmarks. Do NOT invent generic activities like "walking tour of historic architecture" or "sample regional food". Use exact landmark names.`;
+  }
 
   const systemInstruction = `You are GlobeTrotter's Master AI Travel Planner.
 Given a travel prompt:
 - Destination: "${destination}"
+${groundingContext}
 - Parse the EXACT number of days requested in prompt (default to 4 if unspecified).
 - Create a realistic itinerary where EVERY SINGLE DAY HAS COMPLETELY UNIQUE, NON-REPEATING ACTIVITIES.
 ${isIndia ? `- The destination is in India. ALL COSTS MUST BE IN INDIAN RUPEES (INR, ₹). Use realistic Indian prices (e.g. ₹100 to ₹1,500 per activity). Set currency to "INR".` : `- All activity costs must be realistic USD amounts (e.g. $10 to $60 per activity). Set currency to "USD".`}
 - Day 1 MUST be different from Day 2, Day 3, Day 4, etc.
-- STRICT GEOGRAPHIC ACCURACY & AUTHENTICITY: Activities must be strictly grounded in real, authentic landmarks and actual geography of "${destination}". DO NOT hallucinate hills, mountain viewpoints, nature hikes, or cable cars in river-plain cities like Varanasi, Agra, or Delhi. For Varanasi, focus exclusively on authentic river ghats (Assi, Dashashwamedh, Manikarnika), historic temples (Kashi Vishwanath, Sankat Mochan), morning boat rides on the Ganges, evening Ganga Aarti, Banarasi silk handloom weavers, authentic street food (kachori-jalebi, lassi, paan), and Sarnath.
+- STRICT GEOGRAPHIC ACCURACY & AUTHENTICITY: Activities must be strictly grounded in real, authentic landmarks and actual geography of "${destination}".
 - Each activity MUST have a distinct title, distinct description, category, cost in ${isIndia ? 'INR (₹)' : 'USD ($)'}, and scheduled time.
 - Group activities cleanly by day_number (1, 2, 3, 4...). Every activity MUST have an accurate day_number.`;
 
@@ -265,6 +245,56 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
   const requestedDays = dayMatch ? Math.max(1, parseInt(dayMatch[1], 10)) : 4;
   const mainLocation = cleanLocationName(prompt);
 
+  // 1. Check verified destination profile first for specific real-world landmarks!
+  const profile = getDestinationProfile(mainLocation) || getDestinationProfile(prompt);
+  if (profile) {
+    let matchedActivities = profile.activities.filter(a => a.day_number <= requestedDays);
+
+    // If user requested more days than initially in catalog, extend gracefully with complementary specific activities
+    if (requestedDays > 4 && matchedActivities.length > 0) {
+      for (let d = 5; d <= requestedDays; d++) {
+        const base = matchedActivities[(d - 1) % matchedActivities.length];
+        matchedActivities.push({
+          ...base,
+          day_number: d,
+          name: `${base.name} & Evening Cultural Discovery`
+        });
+      }
+    }
+
+    const formattedActivities = matchedActivities.map(a => ({
+      name: a.name,
+      category: a.category,
+      cost: a.cost,
+      duration_min: 120,
+      description: a.desc,
+      image_url: profile.coverPhoto,
+      day_number: a.day_number,
+      time_slot: a.time_slot,
+      currency: profile.currency
+    }));
+
+    return {
+      name: `${requestedDays}-Day ${profile.cityName} Expedition`,
+      description: `A rich ${requestedDays}-day travel itinerary exploring iconic landmarks, local food, and cultural highlights in ${profile.cityName}.`,
+      cover_photo: profile.coverPhoto,
+      currency: profile.currency,
+      stops: [
+        {
+          city_name: profile.cityName,
+          country: profile.country,
+          cost_index: 3,
+          popularity: 98,
+          city_image_url: profile.coverPhoto,
+          duration_days: requestedDays,
+          day_start: 1,
+          day_end: requestedDays,
+          activities: formattedActivities
+        }
+      ]
+    };
+  }
+
   const isVaranasi = lower.includes('varanasi') || lower.includes('banaras') || lower.includes('kashi');
   const isUjjain = lower.includes('ujjain') || lower.includes('ujj') || lower.includes('mahakal');
   const isKashmir = lower.includes('kashmir') || lower.includes('srinagar') || lower.includes('gulmarg');
@@ -335,48 +365,16 @@ function getFallbackItinerary(prompt: string): GeneratedTripPlan {
     ];
     activities = kashmirPool.filter(a => a.day_number <= requestedDays);
   } else {
-    // Universal Rich Fallback Generator: Unique Activities Grounded in Reality for EVERY Day
-    const dayTemplates = [
-      // Day 1
-      [
-        { name: `${mainLocation} Historic Heritage & Landmark Walking Tour`, category: 'Culture', cost: 350, time_slot: '09:30', desc: `Explore historic architecture, iconic city plazas, and ancient heritage sites in ${mainLocation}.` },
-        { name: `${mainLocation} Traditional Food Market & Local Tasting`, category: 'Food', cost: 500, time_slot: '13:00', desc: `Sample regional culinary specialties, street food, and artisanal beverages in ${mainLocation}.` },
-        { name: `${mainLocation} Sunset Riverbank & Cultural Evening Promenade`, category: 'Sightseeing', cost: 250, time_slot: '18:00', desc: `Enjoy scenic golden-hour views and lively evening cultural walks across ${mainLocation}.` }
-      ],
-      // Day 2
-      [
-        { name: `${mainLocation} Sacred Temples & Historic Shrines Trail`, category: 'Culture', cost: 400, time_slot: '09:00', desc: `Visit famous spiritual shrines, carved stone architecture, and serene courtyards in ${mainLocation}.` },
-        { name: `${mainLocation} Historic Architecture & Central Promenade Walk`, category: 'Sightseeing', cost: 250, time_slot: '14:00', desc: `Explore famous city squares, pedestrian avenues, and historic architecture across ${mainLocation}.` },
-        { name: `${mainLocation} Night Bazaar & Traditional Performance Evening`, category: 'Nightlife', cost: 800, time_slot: '19:30', desc: `Experience vibrant evening bazaars, live traditional music, and light shows in ${mainLocation}.` }
-      ],
-      // Day 3
-      [
-        { name: `${mainLocation} Cultural Heritage & Local History Museum`, category: 'Culture', cost: 300, time_slot: '10:00', desc: `Discover regional art, archaeology, and historical artifacts in ${mainLocation}.` },
-        { name: `${mainLocation} Artisan Craft & Handloom Souvenir Trail`, category: 'Culture', cost: 700, time_slot: '14:30', desc: `Learn local handicraft traditions and browse handmade textiles, woodwork, and jewelry.` },
-        { name: `${mainLocation} Gourmet Local Dining & Evening Tasting`, category: 'Food', cost: 1200, time_slot: '20:00', desc: `Evening dinner featuring authentic multi-course regional recipes.` }
-      ],
-      // Day 4
-      [
-        { name: `${mainLocation} Public Gardens & Riverfront Promenade`, category: 'Relaxation', cost: 150, time_slot: '09:30', desc: `Stroll through peaceful public gardens and scenic waterfront walkways in ${mainLocation}.` },
-        { name: `${mainLocation} Interactive Craft & Traditional Workshop Experience`, category: 'Culture', cost: 600, time_slot: '14:00', desc: `Hands-on workshop with traditional master artisans in ${mainLocation}.` },
-        { name: `${mainLocation} Illuminated City Night Tour & Fountain Promenade`, category: 'Sightseeing', cost: 400, time_slot: '19:00', desc: `Marvel at lit-up monuments and nighttime architectural illumination.` }
-      ]
-    ];
-
-    for (let d = 1; d <= requestedDays; d++) {
-      const templateGroup = dayTemplates[(d - 1) % dayTemplates.length];
-      for (const t of templateGroup) {
-        activities.push({
-          day_number: d,
-          name: t.name,
-          category: t.category,
-          cost: t.cost,
-          time_slot: t.time_slot,
-          description: t.desc,
-          image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb'
-        });
-      }
-    }
+    // Grounded honest fallback: Do not fabricate generic activities if destination is unknown
+    activities.push({
+      day_number: 1,
+      name: `${mainLocation} Arrival & Landmark Exploration`,
+      category: 'Sightseeing',
+      cost: 0,
+      time_slot: '10:00',
+      description: `Welcome to ${mainLocation}. Explore prominent historical and central landmarks, consult official visitor guides, and sample local street cuisine. Verified day-by-day catalog profiles are available for major destinations including Paris, Bali, Kyoto, Tokyo, Switzerland, Goa, and Ahmedabad.`,
+      image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb'
+    });
   }
 
   const formattedActivities = activities.map((a) => ({

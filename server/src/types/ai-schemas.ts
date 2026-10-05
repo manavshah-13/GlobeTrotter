@@ -185,3 +185,264 @@ export const ADMIN_INSIGHT_JSON_SCHEMA = {
   },
   required: ["insight"]
 };
+
+// ==========================================
+// 5. NATURAL LANGUAGE TRAVEL INTENT SCHEMAS
+// ==========================================
+
+export interface ParsedTravelIntent {
+  intent: 'plan_trip' | 'flight_search' | 'train_search' | 'bus_search' | 'best_time' | 'budget_inquiry' | 'general_explore';
+  origin?: string;
+  destination?: string;
+  travel_date?: string;
+  return_date?: string;
+  duration_days?: number;
+  passengers?: number;
+  budget?: number;
+  budget_tier?: 'budget' | 'moderate' | 'premium' | 'luxury';
+  transport_type?: 'flight' | 'train' | 'bus' | 'any';
+  travel_style?: string;
+  preferences?: string[];
+  summary: string;
+}
+
+export const TRAVEL_INTENT_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    intent: {
+      type: "string",
+      enum: ["plan_trip", "flight_search", "train_search", "bus_search", "best_time", "budget_inquiry", "general_explore"]
+    },
+    origin: { type: "string", description: "Departure city or station if specified" },
+    destination: { type: "string", description: "Target city or country" },
+    travel_date: { type: "string", description: "Resolved ISO date YYYY-MM-DD or descriptive date" },
+    return_date: { type: "string", description: "Return date if specified" },
+    duration_days: { type: "integer", description: "Number of days for the trip" },
+    passengers: { type: "integer", description: "Number of travelers" },
+    budget: { type: "number", description: "Numerical budget if mentioned" },
+    budget_tier: { type: "string", enum: ["budget", "moderate", "premium", "luxury"] },
+    transport_type: { type: "string", enum: ["flight", "train", "bus", "any"] },
+    travel_style: { type: "string", description: "Travel style persona (e.g., adventure, relaxed, cultural)" },
+    preferences: {
+      type: "array",
+      items: { type: "string" },
+      description: "Extracted tags like beaches, food, mountains, nightlife"
+    },
+    summary: { type: "string", description: "A concise 1-sentence recap of what the user wants" }
+  },
+  required: ["intent", "destination", "summary"]
+};
+
+// ==========================================
+// 6. TRAVEL TIMING SCHEMAS
+// ==========================================
+
+export interface TravelSeasonInfo {
+  months: string;
+  weather: string;
+  crowd_level: 'Low' | 'Moderate' | 'High' | 'Peak';
+  price_level: 'Budget ($)' | 'Moderate ($$)' | 'Premium ($$$)' | 'Peak ($$$$)';
+  highlights: string;
+}
+
+export interface TravelTimingResponse {
+  destination: string;
+  best_overall_period: string;
+  best_budget_period: string;
+  best_weather_period: string;
+  periods_to_avoid: string;
+  avoid_reason: string;
+  seasons: {
+    peak: TravelSeasonInfo;
+    shoulder: TravelSeasonInfo;
+    off_season: TravelSeasonInfo;
+  };
+  festivals_events: string[];
+  weather_summary: string;
+  data_reliability: string;
+}
+
+export const TRAVEL_TIMING_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    destination: { type: "string" },
+    best_overall_period: { type: "string", description: "Recommended months for the best balanced trip" },
+    best_budget_period: { type: "string", description: "Months with cheapest flights & accommodation" },
+    best_weather_period: { type: "string", description: "Months with the most pleasant meteorological conditions" },
+    periods_to_avoid: { type: "string", description: "Months or seasons not recommended" },
+    avoid_reason: { type: "string", description: "Clear factual reason why (e.g. monsoon floods, extreme 45C heat, heavy typhoon season)" },
+    seasons: {
+      type: "object",
+      properties: {
+        peak: {
+          type: "object",
+          properties: {
+            months: { type: "string" },
+            weather: { type: "string" },
+            crowd_level: { type: "string" },
+            price_level: { type: "string" },
+            highlights: { type: "string" }
+          },
+          required: ["months", "weather", "crowd_level", "price_level", "highlights"]
+        },
+        shoulder: {
+          type: "object",
+          properties: {
+            months: { type: "string" },
+            weather: { type: "string" },
+            crowd_level: { type: "string" },
+            price_level: { type: "string" },
+            highlights: { type: "string" }
+          },
+          required: ["months", "weather", "crowd_level", "price_level", "highlights"]
+        },
+        off_season: {
+          type: "object",
+          properties: {
+            months: { type: "string" },
+            weather: { type: "string" },
+            crowd_level: { type: "string" },
+            price_level: { type: "string" },
+            highlights: { type: "string" }
+          },
+          required: ["months", "weather", "crowd_level", "price_level", "highlights"]
+        }
+      },
+      required: ["peak", "shoulder", "off_season"]
+    },
+    festivals_events: {
+      type: "array",
+      items: { type: "string" }
+    },
+    weather_summary: { type: "string" },
+    data_reliability: { type: "string" }
+  },
+  required: ["destination", "best_overall_period", "best_budget_period", "best_weather_period", "periods_to_avoid", "avoid_reason", "seasons"]
+};
+
+// ==========================================
+// 7. COMPREHENSIVE ITEMIZED BUDGET SCHEMAS
+// ==========================================
+
+export interface ItemizedCostItem {
+  category: string;
+  min_cost: number;
+  max_cost: number;
+  avg_cost: number;
+  unit: string;
+  notes: string;
+  status: 'Estimated' | 'Live' | 'Verified' | 'User-provided';
+}
+
+export interface ComprehensiveBudgetResponse {
+  destination: string;
+  origin?: string;
+  days: number;
+  travelers: number;
+  currency: string;
+  display_currency?: string;
+  converted_currency?: string;
+  converted_total_min?: number;
+  converted_total_max?: number;
+  converted_total_avg?: number;
+  conversion_rate_note?: string;
+  travel_style: string;
+  breakdown: {
+    flights_transit: ItemizedCostItem;
+    train_bus_alternative?: ItemizedCostItem;
+    accommodation: ItemizedCostItem;
+    food_dining: ItemizedCostItem;
+    local_transport: ItemizedCostItem;
+    activities_tours: ItemizedCostItem;
+  };
+  total_min: number;
+  total_max: number;
+  total_avg: number;
+  assumptions: string[];
+}
+
+// ==========================================
+// 8. TRANSPORTATION SEARCH SCHEMAS
+// ==========================================
+
+export interface FlightOption {
+  id: string;
+  carrier: string;
+  carrier_code: string;
+  flight_number: string;
+  origin_code: string;
+  origin_city: string;
+  destination_code: string;
+  destination_city: string;
+  departure_time: string;
+  arrival_time: string;
+  duration: string;
+  stops: number;
+  stops_info: string;
+  price: number;
+  currency: string;
+  cabin_class: string;
+  badge?: 'Fastest' | 'Cheapest' | 'Best Value';
+  booking_provider: string;
+  booking_url: string;
+}
+
+export interface TrainClassInfo {
+  code: string;
+  name: string;
+  fare: number;
+  status: 'Available' | 'RAC' | 'Waitlist';
+  seats_available?: number;
+}
+
+export interface TrainOption {
+  id: string;
+  train_number: string;
+  train_name: string;
+  origin_station: string;
+  origin_code: string;
+  destination_station: string;
+  destination_code: string;
+  departure_time: string;
+  arrival_time: string;
+  duration: string;
+  runs_on: string;
+  classes: TrainClassInfo[];
+  booking_provider: string;
+  booking_url: string;
+}
+
+export interface BusOption {
+  id: string;
+  operator: string;
+  bus_type: string;
+  origin_city: string;
+  boarding_point: string;
+  destination_city: string;
+  dropping_point: string;
+  departure_time: string;
+  arrival_time: string;
+  duration: string;
+  rating: number;
+  seats_available: number;
+  fare: number;
+  currency: string;
+  booking_provider: string;
+  booking_url: string;
+}
+
+export interface TransitSearchResult {
+  origin: string;
+  destination: string;
+  date: string;
+  passengers: number;
+  currency: string;
+  is_live: boolean;
+  data_source: string;
+  availability_status: string;
+  booking_note: string;
+  flights: FlightOption[];
+  trains: TrainOption[];
+  buses: BusOption[];
+}
+

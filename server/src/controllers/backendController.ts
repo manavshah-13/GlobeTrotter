@@ -94,8 +94,9 @@ export async function getUserTrips(req: Request, res: Response) {
 
     const allTrips = Array.from(memoryTrips.values());
     if (user_id) {
-      const userTrips = allTrips.filter(t => !t.user_id || t.user_id === user_id || t.user_id === "traveler-123");
-      return res.json(userTrips.length > 0 ? userTrips : allTrips);
+      // For specific users, return only their trips. Include demo trips ONLY for the demo traveler account.
+      const userTrips = allTrips.filter(t => t.user_id === user_id || (user_id === "traveler-123" && t.user_id === "traveler-123"));
+      return res.json(userTrips);
     }
     res.json(allTrips);
   } catch (err: any) {
@@ -125,20 +126,50 @@ export async function createTripManual(req: Request, res: Response) {
     memoryTrips.set(tripId, newTrip);
 
     try {
-      const { data, error } = await supabase
+      let validUserId: string | null = null;
+      const candidateId = toValidUUID(newTrip.user_id);
+      if (candidateId) {
+        try {
+          const { data: userRow } = await supabase
+            .from("users")
+            .select("id")
+            .eq("id", candidateId)
+            .maybeSingle();
+          if (userRow) {
+            validUserId = candidateId;
+          }
+        } catch (_) {
+          validUserId = null;
+        }
+      }
+
+      const insertPayload: any = {
+        user_id: validUserId,
+        name: newTrip.name,
+        description: newTrip.description,
+        start_date: newTrip.start_date,
+        end_date: newTrip.end_date,
+        cover_photo_url: newTrip.cover_photo_url,
+        is_public: newTrip.is_public,
+        public_slug: cleanSlug
+      };
+
+      let { data, error } = await supabase
         .from("trips")
-        .insert({
-          user_id: toValidUUID(newTrip.user_id),
-          name: newTrip.name,
-          description: newTrip.description,
-          start_date: newTrip.start_date,
-          end_date: newTrip.end_date,
-          cover_photo_url: newTrip.cover_photo_url,
-          is_public: newTrip.is_public,
-          public_slug: cleanSlug
-        })
+        .insert(insertPayload)
         .select()
         .single();
+
+      if (error && insertPayload.user_id) {
+        insertPayload.user_id = null;
+        const retry = await supabase
+          .from("trips")
+          .insert(insertPayload)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (!error && data) {
         newTrip.id = data.id;

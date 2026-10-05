@@ -128,9 +128,14 @@ export function AuthProvider({ children }) {
         name: name || cleanEmail.split('@')[0],
         role: 'traveler',
         phone: phone || '',
-        city: city || 'San Francisco',
-        country: country || 'United States',
+        city: city || 'Ahmedabad',
+        country: country || 'India',
         avatar: (name || cleanEmail).slice(0, 2).toUpperCase(),
+        travel_style: userData.travel_style || ['Cultural', 'Relaxed'],
+        budget_tier: userData.budget_tier || 'Moderate',
+        accommodation: userData.accommodation || ['Hotels'],
+        activities: userData.activities || ['Sightseeing', 'Food'],
+        travel_pace: userData.travel_pace || 'Balanced',
         created_at: new Date().toISOString()
       };
       const mockToken = `token-${Date.now()}`;
@@ -140,6 +145,64 @@ export function AuthProvider({ children }) {
       localStorage.setItem('globetrotter_user', JSON.stringify(localUser));
       return localUser;
     }
+  };
+
+  const loginWithGoogle = async (googleProfile = {}) => {
+    try {
+      const email = googleProfile.email || 'traveler.google@globetrotter.io';
+      const name = googleProfile.name || 'Google Explorer';
+      const avatar = googleProfile.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80';
+
+      const res = await fetchApi('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({
+          email,
+          name,
+          avatar,
+          city: googleProfile.city || 'Ahmedabad',
+          country: googleProfile.country || 'India',
+          travel_style: googleProfile.travel_style || ['Cultural', 'Adventure'],
+          budget_tier: googleProfile.budget_tier || 'Moderate',
+          preferences: googleProfile.preferences || ['Beaches', 'Food']
+        })
+      });
+
+      if (res?.token && res?.user) {
+        setToken(res.token);
+        setUser(res.user);
+        localStorage.setItem('globetrotter_token', res.token);
+        localStorage.setItem('globetrotter_user', JSON.stringify(res.user));
+        return res.user;
+      }
+    } catch (_) {
+      // Local fallback for offline mode
+      const mockUser = {
+        id: `user-google-${Date.now()}`,
+        email: googleProfile.email || 'explorer.google@globetrotter.io',
+        name: googleProfile.name || 'Google Traveler',
+        avatar: 'G',
+        city: googleProfile.city || 'Ahmedabad',
+        country: googleProfile.country || 'India',
+        role: 'traveler',
+        travel_style: googleProfile.travel_style || ['Cultural', 'Adventure'],
+        budget_tier: googleProfile.budget_tier || 'Moderate',
+        created_at: new Date().toISOString()
+      };
+      const mockToken = `google-token-${Date.now()}`;
+      setToken(mockToken);
+      setUser(mockUser);
+      localStorage.setItem('globetrotter_token', mockToken);
+      localStorage.setItem('globetrotter_user', JSON.stringify(mockUser));
+      return mockUser;
+    }
+  };
+
+  const updateUserPreferences = (preferences) => {
+    setUser(prev => {
+      const updated = { ...prev, ...preferences };
+      localStorage.setItem('globetrotter_user', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const logout = () => {
@@ -152,7 +215,17 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!user;
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, login, signup, logout, loadingInitial }}>
+    <AuthContext.Provider value={{
+      user,
+      token,
+      isAuthenticated,
+      login,
+      signup,
+      loginWithGoogle,
+      updateUserPreferences,
+      logout,
+      loadingInitial
+    }}>
       {children}
     </AuthContext.Provider>
   );

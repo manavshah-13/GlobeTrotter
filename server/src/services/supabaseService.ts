@@ -87,28 +87,57 @@ export async function insertFullItinerary(
   const tripName = parsed.trip?.name || parsed.name || "Trip Expedition";
   const tripDesc = parsed.trip?.description || parsed.description || "";
   const coverPhotoUrl = parsed.trip?.cover_photo_url || parsed.cover_photo || "https://images.unsplash.com/photo-1488646953014-85cb44e25828";
-  const validUserId = toValidUUID(userId);
+  let validUserId: string | null = null;
+  const candidateId = toValidUUID(userId);
+  if (candidateId) {
+    try {
+      const { data: userRow } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", candidateId)
+        .maybeSingle();
+      if (userRow) {
+        validUserId = candidateId;
+      }
+    } catch (_) {
+      validUserId = null;
+    }
+  }
 
   const cleanSlug = `${tripName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "-")
     .replace(/-+/g, "-")}-${Date.now().toString(36)}`;
 
-  // 1. Insert Trip
-  const { data: tripData, error: tripErr } = await supabase
+  // 1. Insert Trip with foreign key fallback
+  const insertPayload: any = {
+    user_id: validUserId,
+    name: tripName,
+    description: tripDesc,
+    start_date: startDate.toISOString().split("T")[0],
+    end_date: endDate.toISOString().split("T")[0],
+    is_public: true,
+    public_slug: cleanSlug,
+    cover_photo_url: coverPhotoUrl,
+  };
+
+  let { data: tripData, error: tripErr } = await supabase
     .from("trips")
-    .insert({
-      user_id: validUserId,
-      name: tripName,
-      description: tripDesc,
-      start_date: startDate.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
-      is_public: true,
-      public_slug: cleanSlug,
-      cover_photo_url: coverPhotoUrl,
-    })
+    .insert(insertPayload)
     .select()
     .single();
+
+  if (tripErr && insertPayload.user_id) {
+    // Retry with user_id: null if foreign key constraint failed
+    insertPayload.user_id = null;
+    const retryRes = await supabase
+      .from("trips")
+      .insert(insertPayload)
+      .select()
+      .single();
+    tripData = retryRes.data;
+    tripErr = retryRes.error;
+  }
 
   if (tripErr) throw new Error(`Failed to insert trip: ${tripErr.message}`);
 

@@ -98,6 +98,13 @@ export default function ItineraryViewPage() {
 
                 <div className="flex flex-wrap gap-3">
                   <Link
+                    to={`/transport?destination=${encodeURIComponent(stops[0]?.city_name || trip.name)}`}
+                    className="bg-route-teal text-paper font-bold px-4 py-2 rounded hover:bg-opacity-90 flex items-center gap-2 text-sm shadow-2xs"
+                  >
+                    <span className="material-symbols-outlined text-base">commute</span>
+                    <span>Book Flights / Trains</span>
+                  </Link>
+                  <Link
                     to={`/shared?tripId=${trip.id}`}
                     className="bg-paper border border-slate text-ink-navy font-bold px-4 py-2 rounded hover:bg-surface-container flex items-center gap-2 text-sm"
                   >

@@ -55,6 +55,13 @@ export async function fetchCurrentUser() {
 }
 
 // --- AI Endpoints ---
+export async function askAIAssistantApi({ question, conversation_history = [], context = {} }) {
+  return fetchApi('/ai/ask', {
+    method: 'POST',
+    body: JSON.stringify({ question, conversation_history, context }),
+  });
+}
+
 export async function generateItinerary({ prompt, user_id, start_date }) {
   return fetchApi('/generate-itinerary', {
     method: 'POST',
@@ -166,3 +173,40 @@ export async function getAdminMetrics() {
 export async function getAdminInsight() {
   return fetchApi('/admin-insight');
 }
+
+// --- Travel Intelligence & Booking APIs ---
+export async function parseTravelIntentApi(query, userProfile = {}) {
+  return fetchApi('/ai/parse-intent', {
+    method: 'POST',
+    body: JSON.stringify({ query, user_profile: userProfile }),
+  });
+}
+
+export async function getTravelTimingApi(destination) {
+  return fetchApi(`/ai/travel-timing?destination=${encodeURIComponent(destination)}`);
+}
+
+export async function getComprehensiveBudgetApi(params) {
+  return fetchApi('/ai/comprehensive-budget', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
+export async function searchTransportApi({ origin, destination, date, passengers = 1 }) {
+  const query = new URLSearchParams({
+    origin: origin || 'Ahmedabad',
+    destination: destination || 'Delhi',
+    date: date || '',
+    passengers: passengers.toString(),
+  }).toString();
+  return fetchApi(`/transport/search?${query}`);
+}
+
+export async function googleLoginApi(userData) {
+  return fetchApi('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  });
+}
+

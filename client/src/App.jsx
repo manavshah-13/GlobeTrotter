@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import SignUpPage from './pages/SignUpPage';
 import DashboardPage from './pages/DashboardPage';
 import PlanNewTripPage from './pages/PlanNewTripPage';
+import TransportationPage from './pages/TransportationPage';
 import ItineraryBuilderPage from './pages/ItineraryBuilderPage';
 import MyTripsPage from './pages/MyTripsPage';
 import ActivitySearchPage from './pages/ActivitySearchPage';
@@ -48,6 +49,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <PlanNewTripPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transport"
+            element={
+              <ProtectedRoute>
+                <TransportationPage />
               </ProtectedRoute>
             }
           />

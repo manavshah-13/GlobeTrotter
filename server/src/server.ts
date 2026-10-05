@@ -38,6 +38,15 @@ import {
   optionalAuth,
 } from "./middlewares/authMiddleware.js";
 
+import {
+  askAssistantHandler,
+  parseIntentHandler,
+  travelTimingHandler,
+  comprehensiveBudgetHandler,
+  transportSearchHandler,
+  googleAuthHandler
+} from "./controllers/travelController.js";
+
 dotenv.config();
 
 const app = express();
@@ -56,13 +65,23 @@ apiRouter.get("/health", (req, res) => {
 // --- Authentication Endpoints ---
 apiRouter.post("/auth/register", registerHandler);
 apiRouter.post("/auth/login", loginHandler);
+apiRouter.post("/auth/google", googleAuthHandler);
 apiRouter.get("/auth/me", requireAuth, getMeHandler);
 
-// --- AI Automation Endpoints ---
+// --- General AI Travel Assistant Endpoint (Intent-Aware & Catalog Grounded) ---
+apiRouter.post("/ai/ask", askAssistantHandler);
+
+// --- AI Automation & Travel Intelligence Endpoints ---
 apiRouter.post("/generate-itinerary", optionalAuth, generateItineraryHandler);
 apiRouter.all("/recommend-activities", recommendActivitiesHandler);
 apiRouter.all("/estimate-budget", estimateBudgetHandler);
 apiRouter.all("/admin-insight", requireAuth, requireAdmin, adminInsightHandler);
+
+// Natural Language Intent, Timing, Itemized Budget & Transportation Search
+apiRouter.post("/ai/parse-intent", parseIntentHandler);
+apiRouter.all("/ai/travel-timing", travelTimingHandler);
+apiRouter.all("/ai/comprehensive-budget", comprehensiveBudgetHandler);
+apiRouter.all("/transport/search", transportSearchHandler);
 
 // --- Core Backend Endpoints ---
 apiRouter.get("/trips", optionalAuth, getUserTrips);

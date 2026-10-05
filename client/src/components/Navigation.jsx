@@ -6,6 +6,7 @@ import { useCurrency } from '../context/CurrencyContext';
 const ALL_SCREENS = [
   { name: "Dashboard", path: "/dashboard", icon: "dashboard" },
   { name: "Plan a New Trip", path: "/plan", icon: "add_location_alt" },
+  { name: "Book Transportation", path: "/transport", icon: "commute" },
   { name: "Itinerary Builder", path: "/builder", icon: "route" },
   { name: "My Trips", path: "/trips", icon: "luggage" },
   { name: "Itinerary View", path: "/itinerary", icon: "map" },

@@ -222,7 +222,7 @@ export async function createUser(data: {
   // Attempt Supabase insert if available
   try {
     const validUuid = toValidUUID(userId);
-    await supabase.from('users').insert({
+    const { data: inserted, error: insertError } = await supabase.from('users').insert({
       id: validUuid || undefined,
       email: cleanEmail,
       password_hash: passwordHash,
@@ -231,8 +231,17 @@ export async function createUser(data: {
       phone: newUser.phone,
       city: newUser.city,
       country: newUser.country,
-    });
-  } catch (_) {}
+    }).select().single();
+
+    if (insertError) {
+      console.error('[authService] Supabase user insert error:', insertError.message || insertError);
+    } else if (inserted?.id) {
+      newUser.id = inserted.id;
+      inMemoryUsers.set(cleanEmail, newUser);
+    }
+  } catch (err) {
+    console.error('[authService] Supabase connection error:', err);
+  }
 
   return newUser;
 }
